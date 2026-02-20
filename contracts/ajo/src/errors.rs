@@ -52,4 +52,7 @@ pub enum AjoError {
     
     /// Only the creator or authorized members can do this.
     Unauthorized = 15,
+    
+    /// Contribution outside active cycle window
+    OutsideCycleWindow = 16,
 }
