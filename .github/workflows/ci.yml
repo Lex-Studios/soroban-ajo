@@ -163,6 +163,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate PR Title
         uses: amannn/action-semantic-pull-request@v5
@@ -181,13 +183,63 @@ jobs:
             ci
             chore
 
+      - name: Verify Issue Link
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prBody = context.payload.pull_request.body || '';
+            const issuePattern = /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/gi;
+            const matches = prBody.match(issuePattern);
+
+            if (!matches || matches.length === 0) {
+              core.setFailed('❌ PR must reference an issue using "Fixes #123" or "Closes #123"');
+            } else {
+              console.log('✅ Issue reference found:', matches);
+            }
+
       - name: Check for merge conflicts
         run: |
           git fetch origin ${{ github.base_ref }}
           if git merge-tree $(git merge-base HEAD origin/${{ github.base_ref }}) HEAD origin/${{ github.base_ref }} | grep -q '<<<<<<<'; then
-            echo "Merge conflicts detected!"
+            echo "❌ Merge conflicts detected!"
             exit 1
+          else
+            echo "✅ No merge conflicts"
           fi
+
+      - name: Verify Test Files
+        run: |
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' | grep -v '.test.' | grep -v '.spec.')
+
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "📝 Changed source files:"
+            echo "$CHANGED_FILES"
+            
+            TEST_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.test.*' '*.spec.*')
+            
+            if [ -z "$TEST_FILES" ]; then
+              echo "⚠️ Source files changed but no test files added/modified"
+              echo "Consider adding tests for your changes"
+            else
+              echo "✅ Test files found:"
+              echo "$TEST_FILES"
+            fi
+          fi
+
+      - name: Check Code Complexity
+        run: |
+          echo "🔍 Checking code complexity..."
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx')
+
+          for file in $CHANGED_FILES; do
+            if [ -f "$file" ]; then
+              # Count lines in functions (simple heuristic)
+              LONG_FUNCTIONS=$(awk '/function|=>/ {start=NR} /^}/ {if (NR-start > 50) print FILENAME":"start"-"NR}' "$file")
+              if [ -n "$LONG_FUNCTIONS" ]; then
+                echo "⚠️ Long function detected in $file"
+              fi
+            fi
+          done
 
       - name: Comment PR Success
         if: success()

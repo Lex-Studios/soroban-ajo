@@ -1,87 +1,148 @@
 ## Description
-<!-- Provide a brief description of your changes -->
+
+<!-- Provide a clear and concise description of your changes -->
+
+## Related Issue
+
+<!-- Link the issue this PR addresses -->
+
+Fixes #(issue number)
 
 ## Type of Change
-<!-- Mark the relevant option with an 'x' -->
+
+<!-- Mark the relevant option with an "x" -->
 
 - [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
 - [ ] ✨ New feature (non-breaking change which adds functionality)
 - [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
 - [ ] 📝 Documentation update
-- [ ] 🎨 Style/UI update (non-functional change)
-- [ ] ♻️ Code refactoring (no functional changes)
+- [ ] 🎨 Style/UI update
+- [ ] ♻️ Code refactoring
 - [ ] ⚡ Performance improvement
 - [ ] ✅ Test update
-
-## Related Issues
-<!-- Link to related issues: Fixes #123, Closes #456 -->
-
-Fixes #
+- [ ] 🔧 Build/CI update
 
 ## Changes Made
-<!-- List the specific changes you made -->
 
-- 
-- 
-- 
+<!-- List the specific changes made in this PR -->
 
-## Screenshots (if applicable)
-<!-- Add screenshots to help explain your changes -->
+-
+-
+-
 
-## Testing Checklist
-<!-- Mark completed items with an 'x' -->
+## Testing
 
-- [ ] I have tested these changes locally
-- [ ] I have added/updated tests that prove my fix/feature works
-- [ ] All existing tests pass
-- [ ] I have tested on multiple screen sizes (if UI change)
-- [ ] I have tested wallet connection (if blockchain-related)
-- [ ] I have tested on both testnet and mainnet configs (if applicable)
+<!-- Describe the tests you ran and how to reproduce them -->
 
-## Code Quality Checklist
-<!-- Mark completed items with an 'x' -->
+### Test Coverage
+
+- [ ] Unit tests added/updated
+- [ ] Integration tests added/updated
+- [ ] E2E tests added/updated
+- [ ] Manual testing completed
+
+### Test Results
+
+```
+# Paste test results here
+```
+
+## Screenshots/Videos
+
+<!-- If applicable, add screenshots or videos to demonstrate the changes -->
+
+## Performance Impact
+
+<!-- Describe any performance implications -->
+
+- [ ] No performance impact
+- [ ] Performance improved
+- [ ] Performance impact documented below
+
+## Accessibility
+
+<!-- Confirm accessibility compliance -->
+
+- [ ] Keyboard navigation tested
+- [ ] Screen reader compatible
+- [ ] ARIA attributes added where needed
+- [ ] Color contrast meets WCAG AA standards
+
+## Documentation
+
+<!-- Confirm documentation is updated -->
+
+- [ ] README updated
+- [ ] API documentation updated
+- [ ] Inline code comments added
+- [ ] CHANGELOG updated
+
+## Checklist
+
+<!-- Ensure all items are checked before submitting -->
 
 - [ ] My code follows the project's style guidelines
-- [ ] I have performed a self-review of my own code
+- [ ] I have performed a self-review of my code
 - [ ] I have commented my code, particularly in hard-to-understand areas
 - [ ] I have made corresponding changes to the documentation
-- [ ] My changes generate no new warnings or errors
-- [ ] I have removed any console.log() statements
-- [ ] I have removed any commented-out code
-- [ ] No sensitive data (API keys, passwords, etc.) is exposed
-
-## Smart Contract Changes (if applicable)
-<!-- Only fill if your PR includes contract changes -->
-
-- [ ] Contract builds successfully with `stellar contract build`
-- [ ] All contract tests pass with `cargo test`
-- [ ] Contract is optimized for WASM size
-- [ ] Security implications have been considered
-- [ ] Contract events are properly emitted
-
-## Dependencies
-<!-- List any new dependencies added -->
-
-- [ ] No new dependencies added
-- [ ] New dependencies are necessary and have been reviewed
-- [ ] Dependencies have no known security vulnerabilities
+- [ ] My changes generate no new warnings
+- [ ] I have added tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+- [ ] Any dependent changes have been merged and published
+- [ ] I have checked my code and corrected any misspellings
+- [ ] I have removed all console.log statements
+- [ ] I have verified no sensitive data is exposed
 
 ## Breaking Changes
-<!-- If this is a breaking change, describe what breaks and the migration path -->
 
-N/A
+<!-- If this PR introduces breaking changes, describe them here -->
+
+- [ ] No breaking changes
+- [ ] Breaking changes documented below:
+
+## Migration Guide
+
+<!-- If breaking changes exist, provide a migration guide -->
 
 ## Additional Notes
-<!-- Add any other context about the PR here -->
+
+<!-- Add any additional notes, context, or concerns -->
 
 ---
 
-## Reviewer Checklist
-<!-- For reviewers only -->
+## CI/CD Checks
 
-- [ ] Code follows project conventions
-- [ ] Changes are well-tested
-- [ ] Documentation is updated
-- [ ] No security concerns
-- [ ] Performance impact is acceptable
-- [ ] UI/UX is intuitive and accessible
+<!-- These will be automatically verified -->
+
+- ✅ Issue linked and verified
+- ✅ Test coverage ≥ 70%
+- ✅ No console.log statements
+- ✅ No sensitive data exposed
+- ✅ Lint and type checks pass
+- ✅ Build succeeds
+- ✅ Performance benchmarks pass
+- ✅ Accessibility tests pass
+- ✅ Documentation updated
+
+## Reviewer Notes
+
+<!-- Notes for reviewers -->
+
+### Review Focus Areas
+
+- [ ] Code quality and maintainability
+- [ ] Test coverage and quality
+- [ ] Performance implications
+- [ ] Security considerations
+- [ ] Accessibility compliance
+- [ ] Documentation completeness
+
+---
+
+**By submitting this PR, I confirm that:**
+
+- I have read and followed the [Contributing Guidelines](../CONTRIBUTING.md)
+- I have linked the related issue(s)
+- I have added appropriate tests
+- I have updated relevant documentation
+- All CI/CD checks are passing
