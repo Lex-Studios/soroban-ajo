@@ -1,9 +1,10 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import morgan from 'morgan'
 import dotenv from 'dotenv'
 import { errorHandler } from './middleware/errorHandler'
+import { requestLogger } from './middleware/requestLogger'
+import { logger } from './utils/logger'
 import { groupsRouter } from './routes/groups'
 import { healthRouter } from './routes/health'
 import { webhooksRouter } from './routes/webhooks'
@@ -19,7 +20,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }))
-app.use(morgan('dev'))
+app.use(requestLogger)
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
@@ -33,7 +34,7 @@ app.use(errorHandler)
 
 // Start server
 app.listen(PORT, () => {
-  // Backend server started
+  logger.info(`Server started on port ${PORT}`, { env: process.env.NODE_ENV || 'development' })
 })
 
 export default app
