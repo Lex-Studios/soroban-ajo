@@ -36,9 +36,6 @@ pub struct Group {
     
     /// Whether the group has completed all cycles
     pub is_complete: bool,
-    
-    /// Whether the group was cancelled by its creator
-    pub is_cancelled: bool,
 }
 
 /// Contribution status for a specific member in a specific cycle
@@ -63,8 +60,7 @@ pub struct PayoutRecord {
     pub timestamp: u64,
 }
 
-/// Comprehensive group status returned by get_group_status
-/// Provides all key information in a single call to reduce client complexity
+/// Comprehensive group status information
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroupStatus {
@@ -74,33 +70,33 @@ pub struct GroupStatus {
     /// Current cycle number
     pub current_cycle: u32,
     
-    /// Address of the next recipient (check has_next_recipient first)
-    pub next_recipient: Address,
-    
-    /// Whether there is a next recipient (false if group is complete)
+    /// Whether there is a next recipient (false when group is complete)
     pub has_next_recipient: bool,
     
-    /// Number of members who have contributed this cycle
+    /// Address of the next member to receive payout
+    pub next_recipient: Address,
+    
+    /// Number of members who have contributed in the current cycle
     pub contributions_received: u32,
     
     /// Total number of members in the group
     pub total_members: u32,
     
-    /// List of members who haven't contributed yet this cycle
+    /// List of members who have not yet contributed in the current cycle
     pub pending_contributors: Vec<Address>,
     
     /// Whether the group has completed all cycles
     pub is_complete: bool,
     
-    /// Timestamp when current cycle started
+    /// Whether the current cycle is still active
+    pub is_cycle_active: bool,
+    
+    /// Timestamp when the current cycle started
     pub cycle_start_time: u64,
     
-    /// Timestamp when current cycle ends
+    /// Timestamp when the current cycle ends
     pub cycle_end_time: u64,
     
-    /// Current timestamp for reference
+    /// Current block timestamp
     pub current_time: u64,
-    
-    /// Whether the cycle window is still active
-    pub is_cycle_active: bool,
 }

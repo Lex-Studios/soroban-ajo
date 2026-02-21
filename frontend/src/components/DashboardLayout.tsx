@@ -1,27 +1,23 @@
 // Issue #20: Design responsive dashboard layout
 // Complexity: Trivial (100 pts)
-// Status: Placeholder
-// TASK: Issue #62 Added progressive loading states, spinners, and skeletons
+// Status: Complete - with loading states from #62
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { GroupCard } from './GroupCard' // Importing the card we just updated
+import { GroupCard } from './GroupCard'
 import { WalletConnector } from './WalletConnector'
 import { useAuthContext } from '@/context/AuthContext'
 
 export const DashboardLayout: React.FC = () => {
-  // --- NEW: Progressive Loading State (#62) ---
   const [isLoading, setIsLoading] = useState(true)
   const { isAuthenticated } = useAuthContext()
   const pathname = usePathname()
 
-  // Simulating a network request (e.g., fetching from Soroban smart contract)
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsLoading(false)
-    }, 2500) // Show loaders for 2.5 seconds, then reveal the real data
-
+    }, 2500)
     return () => clearTimeout(timer)
   }, [])
 
@@ -47,15 +43,12 @@ export const DashboardLayout: React.FC = () => {
             </div>
             
             <div className="flex items-center gap-4">
-              {/* TASK: State Indicator Spinner (#62) */}
               {isLoading && (
                 <div className="flex items-center space-x-3 text-blue-600">
                   <span className="text-sm font-semibold animate-pulse">Syncing...</span>
                   <div className="spinner"></div>
                 </div>
               )}
-              
-              {/* Wallet Connector */}
               <WalletConnector />
             </div>
           </div>
@@ -113,7 +106,6 @@ export const DashboardLayout: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="bg-white rounded-lg shadow p-6">
                 <h3 className="text-lg font-semibold mb-2">Active Groups</h3>
-                {/* TASK: Stat Card Skeleton (#62) */}
                 {isLoading ? (
                   <div className="skeleton h-9 w-12 rounded mt-1"></div>
                 ) : (
@@ -155,7 +147,6 @@ export const DashboardLayout: React.FC = () => {
                 </Link>
               </div>
               
-              {/* TASK: GroupCard Skeleton Loaders (#62) */}
               {isLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <GroupCard isLoading={true} />

@@ -3,12 +3,39 @@ import { SorobanService } from '../services/sorobanService'
 
 const sorobanService = new SorobanService()
 
+/**
+ * Parses and validates `?page` and `?limit` query parameters.
+ * Falls back to safe defaults when values are missing or invalid.
+ */
+function parsePagination(query: Request['query']): { page: number; limit: number } {
+  const DEFAULT_PAGE = 1
+  const DEFAULT_LIMIT = 20
+  const MAX_LIMIT = 100
+
+  const page = Math.max(1, parseInt(query.page as string, 10) || DEFAULT_PAGE)
+  const limit = Math.min(
+    MAX_LIMIT,
+    Math.max(1, parseInt(query.limit as string, 10) || DEFAULT_LIMIT)
+  )
+
+  return { page, limit }
+}
+
 export class GroupsController {
+  /**
+   * GET /api/groups?page=1&limit=20
+   * Returns a paginated list of all groups.
+   */
   async listGroups(req: Request, res: Response, next: NextFunction) {
     try {
-      // TODO: Implement group listing from Soroban
-      const groups = await sorobanService.getAllGroups()
-      res.json({ success: true, data: groups })
+      const pagination = parsePagination(req.query)
+      const result = await sorobanService.getAllGroups(pagination)
+
+      res.json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+      })
     } catch (error) {
       next(error)
     }
@@ -18,14 +45,14 @@ export class GroupsController {
     try {
       const { id } = req.params
       const group = await sorobanService.getGroup(id)
-      
+
       if (!group) {
-        return res.status(404).json({ 
-          success: false, 
-          error: 'Group not found' 
+        return res.status(404).json({
+          success: false,
+          error: 'Group not found',
         })
       }
-      
+
       res.json({ success: true, data: group })
     } catch (error) {
       next(error)
@@ -75,11 +102,21 @@ export class GroupsController {
     }
   }
 
+  /**
+   * GET /api/groups/:id/transactions?page=1&limit=20
+   * Returns a paginated list of transactions for a group.
+   */
   async getTransactions(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params
-      const transactions = await sorobanService.getGroupTransactions(id)
-      res.json({ success: true, data: transactions })
+      const pagination = parsePagination(req.query)
+      const result = await sorobanService.getGroupTransactions(id, pagination)
+
+      res.json({
+        success: true,
+        data: result.data,
+        pagination: result.pagination,
+      })
     } catch (error) {
       next(error)
     }
