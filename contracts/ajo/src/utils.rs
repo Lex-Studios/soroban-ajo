@@ -10,6 +10,9 @@ use crate::types::Group;
 /// # Arguments
 /// * `members` - The ordered member list to search
 /// * `address` - The address to look for
+///
+/// # Returns
+/// `true` if the address is found in the members list, `false` otherwise
 pub fn is_member(members: &Vec<Address>, address: &Address) -> bool {
     for member in members.iter() {
         if member == *address {
@@ -28,6 +31,9 @@ pub fn is_member(members: &Vec<Address>, address: &Address) -> bool {
 /// # Arguments
 /// * `env` - The contract environment (needed for storage reads)
 /// * `group` - The group whose current cycle contributions are being verified
+///
+/// # Returns
+/// `true` if all members have contributed, `false` otherwise
 pub fn all_members_contributed(env: &Env, group: &Group) -> bool {
     for member in group.members.iter() {
         if !crate::storage::has_contributed(env, group.id, group.current_cycle, &member) {
@@ -40,7 +46,7 @@ pub fn all_members_contributed(env: &Env, group: &Group) -> bool {
 /// Calculates the total payout amount for a single cycle.
 ///
 /// The payout equals each member's fixed contribution multiplied by the total
-/// number of members. This ensures the recipient receives the full pool.
+/// number of members. This ensures the recipient receives the full pool of contributions.
 ///
 /// # Arguments
 /// * `group` - The group whose payout is being calculated
@@ -56,6 +62,12 @@ pub fn calculate_payout_amount(group: &Group) -> i128 {
 ///
 /// Wraps `env.ledger().timestamp()` for testability and to provide a
 /// single consistent source of time across the contract.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access the ledger
+///
+/// # Returns
+/// Current Unix timestamp in seconds
 pub fn get_current_timestamp(env: &Env) -> u64 {
     env.ledger().timestamp()
 }
@@ -70,6 +82,9 @@ pub fn get_current_timestamp(env: &Env) -> u64 {
 /// * `amount` - Proposed contribution amount in stroops; must be > 0
 /// * `duration` - Proposed cycle duration in seconds; must be > 0
 /// * `max_members` - Proposed member cap; must be between 2 and 100 inclusive
+///
+/// # Returns
+/// `Ok(())` if all parameters are valid
 ///
 /// # Errors
 /// * [`ContributionAmountZero`](crate::errors::AjoError::ContributionAmountZero) — if `amount == 0`
@@ -117,10 +132,10 @@ pub fn validate_group_params(
     Ok(())
 }
 
-/// Returns the start and end timestamps for the group's current cycle.
+/// Returns the start and end timestamps for the group's current cycle window.
 ///
 /// The cycle window is `[cycle_start_time, cycle_start_time + cycle_duration)`.
-/// This is a pure calculation — it does not read the ledger clock.
+/// This is a pure calculation that does not read the ledger clock.
 ///
 /// # Arguments
 /// * `group` - The group whose cycle window is being computed
@@ -143,6 +158,9 @@ pub fn get_cycle_window(group: &Group, _current_time: u64) -> (u64, u64) {
 /// # Arguments
 /// * `group` - The group whose cycle window is being checked
 /// * `current_time` - The timestamp to evaluate, typically from [`get_current_timestamp`]
+///
+/// # Returns
+/// `true` if current_time is within the cycle window, `false` otherwise
 pub fn is_within_cycle_window(group: &Group, current_time: u64) -> bool {
     let (cycle_start, cycle_end) = get_cycle_window(group, current_time);
     current_time >= cycle_start && current_time < cycle_end

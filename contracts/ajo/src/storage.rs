@@ -33,9 +33,15 @@ pub enum StorageKey {
 impl StorageKey {
     /// Returns the short [`Symbol`] prefix associated with this key variant.
     ///
-    /// Note: composite keys (e.g., [`StorageKey::Group`]) pair this symbol
-    /// with additional fields in a tuple at the storage call site; this
-    /// method returns only the symbol portion.
+    /// This method extracts the symbol portion of a storage key. Note that composite
+    /// keys (e.g., [`StorageKey::Group`]) pair this symbol with additional fields
+    /// in a tuple at the storage call site; this method returns only the symbol portion.
+    ///
+    /// # Arguments
+    /// * `env` - The contract environment (needed for symbol creation)
+    ///
+    /// # Returns
+    /// The [`Symbol`] corresponding to this key variant's prefix
     pub fn to_symbol(&self, env: &Env) -> Symbol {
         match self {
             StorageKey::Admin => symbol_short!("ADMIN"),
@@ -52,6 +58,12 @@ impl StorageKey {
 /// The counter starts at 0 and is stored in instance storage. Each call
 /// increments it by 1 and returns the new value, so the first group
 /// ever created receives ID `1`.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access instance storage
+///
+/// # Returns
+/// The next available group ID (starting from 1)
 pub fn get_next_group_id(env: &Env) -> u64 {
     let key = symbol_short!("GCOUNTER");
     let current: u64 = env.storage().instance().get(&key).unwrap_or(0);
@@ -60,20 +72,32 @@ pub fn get_next_group_id(env: &Env) -> u64 {
     next
 }
 
-/// Persists a [`Group`](crate::types::Group) to ledger storage.
+/// Persists a [`Group`](crate::types::Group) to persistent ledger storage.
 ///
-/// Overwrites any existing data for the given `group_id`. Call this any time
-/// the group's mutable fields (members, cycle, payout index, etc.) change.
+/// This function writes or overwrites the group data for the given `group_id`.
+/// Call this any time the group's mutable fields (members, cycle, payout index, etc.) change.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access persistent storage
+/// * `group_id` - The unique identifier for the group
+/// * `group` - The group data to store
 pub fn store_group(env: &Env, group_id: u64, group: &crate::types::Group) {
     let key = (symbol_short!("GROUP"), group_id);
     env.storage().persistent().set(&key, group);
 }
 
-/// Retrieves a [`Group`](crate::types::Group) from ledger storage.
+/// Retrieves a [`Group`](crate::types::Group) from persistent ledger storage.
 ///
 /// Returns `None` if no group exists for the given `group_id`. Callers
 /// typically convert this to [`AjoError::GroupNotFound`](crate::errors::AjoError::GroupNotFound)
 /// via `.ok_or(...)`.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access persistent storage
+/// * `group_id` - The unique identifier for the group to retrieve
+///
+/// # Returns
+/// `Some(Group)` if the group exists, `None` otherwise
 pub fn get_group(env: &Env, group_id: u64) -> Option<crate::types::Group> {
     let key = (symbol_short!("GROUP"), group_id);
     env.storage().persistent().get(&key)
@@ -81,8 +105,13 @@ pub fn get_group(env: &Env, group_id: u64) -> Option<crate::types::Group> {
 
 /// Removes a group's record from persistent storage.
 ///
-/// This is a destructive, irreversible operation. Use with caution —
-/// primarily intended for administrative cleanup or future migration paths.
+/// This is a destructive, irreversible operation. Use with caution as it
+/// permanently deletes the group data. Primarily intended for administrative
+/// cleanup or future migration paths.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access persistent storage
+/// * `group_id` - The unique identifier for the group to remove
 pub fn remove_group(env: &Env, group_id: u64) {
     let key = (symbol_short!("GROUP"), group_id);
     env.storage().persistent().remove(&key);
@@ -91,10 +120,11 @@ pub fn remove_group(env: &Env, group_id: u64) {
 /// Records whether a member has paid their contribution for a given cycle.
 ///
 /// The composite key `(group_id, cycle, member)` ensures that contribution
-/// records are scoped per-group and per-cycle, so a member paying in cycle 1
-/// does not affect their status in cycle 2.
+/// records are scoped per-group and per-cycle. A member's contribution in
+/// cycle 1 does not affect their status in cycle 2.
 ///
 /// # Arguments
+/// * `env` - The contract environment used to access persistent storage
 /// * `group_id` - The group the contribution belongs to
 /// * `cycle` - The cycle number being recorded
 /// * `member` - The contributing member's address
@@ -106,12 +136,16 @@ pub fn store_contribution(env: &Env, group_id: u64, cycle: u32, member: &Address
 
 /// Returns `true` if the given member has contributed during the specified cycle.
 ///
-/// Defaults to `false` if no record exists (i.e., the member has not yet contributed).
+/// Defaults to `false` if no record exists, meaning the member has not yet contributed.
 ///
 /// # Arguments
+/// * `env` - The contract environment used to access persistent storage
 /// * `group_id` - The group to check
 /// * `cycle` - The cycle number to check
 /// * `member` - The member address to check
+///
+/// # Returns
+/// `true` if the member has contributed, `false` otherwise
 pub fn has_contributed(env: &Env, group_id: u64, cycle: u32, member: &Address) -> bool {
     let key = (symbol_short!("CONTRIB"), group_id, cycle, member);
     env.storage().persistent().get(&key).unwrap_or(false)
@@ -123,6 +157,7 @@ pub fn has_contributed(env: &Env, group_id: u64, cycle: u32, member: &Address) -
 /// It can be used for audit purposes and to prevent any future duplicate payouts.
 ///
 /// # Arguments
+/// * `env` - The contract environment used to access persistent storage
 /// * `group_id` - The group the payout belongs to
 /// * `member` - The address that received the payout
 pub fn mark_payout_received(env: &Env, group_id: u64, member: &Address) {
@@ -132,11 +167,15 @@ pub fn mark_payout_received(env: &Env, group_id: u64, member: &Address) {
 
 /// Returns `true` if the given member has already received a payout for this group.
 ///
-/// Defaults to `false` if no record exists.
+/// Defaults to `false` if no record exists, meaning the member has not yet received a payout.
 ///
 /// # Arguments
+/// * `env` - The contract environment used to access persistent storage
 /// * `group_id` - The group to check
 /// * `member` - The member address to check
+///
+/// # Returns
+/// `true` if the member has received a payout, `false` otherwise
 pub fn has_received_payout(env: &Env, group_id: u64, member: &Address) -> bool {
     let key = (symbol_short!("PAYOUT"), group_id, member);
     env.storage().persistent().get(&key).unwrap_or(false)
@@ -149,12 +188,13 @@ pub fn has_received_payout(env: &Env, group_id: u64, member: &Address) -> bool {
 /// pairs each address with a `bool` indicating whether they have contributed.
 ///
 /// # Arguments
+/// * `env` - The contract environment used to access persistent storage
 /// * `group_id` - The group to query
 /// * `cycle` - The cycle number to query
 /// * `members` - The ordered member list from the group (use `group.members`)
 ///
 /// # Returns
-/// A `Vec<(Address, bool)>` where `true` means the member has contributed.
+/// A `Vec<(Address, bool)>` with members in original order, `true` = has contributed
 pub fn get_cycle_contributions(
     env: &Env,
     group_id: u64,
@@ -172,8 +212,12 @@ pub fn get_cycle_contributions(
 /// Stores the contract administrator address in instance storage.
 ///
 /// Should only be called once during [`AjoContract::initialize`](crate::contract::AjoContract::initialize).
-/// Subsequent calls will overwrite the existing admin — access control
-/// to prevent that is enforced at the contract level.
+/// Subsequent calls will overwrite the existing admin. Access control is enforced
+/// at the contract level to prevent unauthorized changes.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access instance storage
+/// * `admin` - The address of the contract administrator
 pub fn store_admin(env: &Env, admin: &Address) {
     let key = symbol_short!("ADMIN");
     env.storage().instance().set(&key, admin);
@@ -182,7 +226,13 @@ pub fn store_admin(env: &Env, admin: &Address) {
 /// Retrieves the contract administrator address from instance storage.
 ///
 /// Returns `None` if the contract has not yet been initialized.
-/// Callers typically use `.ok_or(AjoError::Unauthorized)` to enforce auth.
+/// Callers typically use `.ok_or(AjoError::Unauthorized)` to enforce authorization checks.
+///
+/// # Arguments
+/// * `env` - The contract environment used to access instance storage
+///
+/// # Returns
+/// `Some(Address)` containing the admin address if initialized, `None` otherwise
 pub fn get_admin(env: &Env) -> Option<Address> {
     let key = symbol_short!("ADMIN");
     env.storage().instance().get(&key)
