@@ -1,11 +1,17 @@
 'use client'
 
 import React, { useState, useMemo } from 'react'
-import { TransactionFilters, TransactionSort, TransactionSortField, Transaction } from '../types'
+import { TransactionFilters, TransactionSort, TransactionSortField } from '../types'
 import { useTheme } from '@/context/ThemeContext'
-import { useTransactions } from '../hooks/useContractData'
-import { TablePagination } from './TablePagination'
-import { TransactionDetailModal } from './TransactionDetailModal'
+
+interface Transaction {
+  id: string
+  type: 'contribution' | 'payout' | 'refund'
+  amount: number
+  date: string
+  member: string
+  status: 'completed' | 'pending' | 'failed'
+}
 
 interface TransactionHistoryProps {
   groupId: string
@@ -123,7 +129,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
 
   const SortIcon = ({ field }: { field: TransactionSortField }) => {
     if (sort.field !== field) {
-      return <span style={{ color: 'var(--color-text-muted)' }} className="ml-1">↕</span>
+      return (
+        <span style={{ color: 'var(--color-text-muted)' }} className="ml-1">
+          ↕
+        </span>
+      )
     }
     return <span className="ml-1">{sort.direction === 'asc' ? '↑' : '↓'}</span>
   }
@@ -141,11 +151,18 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
 
       {/* Filters Section */}
       <div
-        className="mb-6 p-4 rounded-lg bg-[var(--color-surface-muted)] border border-[var(--color-border)]"
+        className="mb-6 p-4 rounded-lg"
+        style={{
+          background: 'var(--color-surface-muted)',
+          border: '1px solid var(--color-border)',
+        }}
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+            <label
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--color-text)' }}
+            >
               Start Date
             </label>
             <input
@@ -157,7 +174,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+            <label
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--color-text)' }}
+            >
               End Date
             </label>
             <input
@@ -169,7 +189,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>
+            <label
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--color-text)' }}
+            >
               Type
             </label>
             <select
@@ -185,8 +208,11 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text)' }}>
-              Member (Address)
+            <label
+              className="block text-sm font-medium mb-1"
+              style={{ color: 'var(--color-text)' }}
+            >
+              Member
             </label>
             <input
               type="text"
@@ -204,7 +230,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
           </span>
           <button
             onClick={handleResetFilters}
-            className="text-sm font-medium hover:underline"
+            className="text-sm font-medium"
             style={{ color: 'var(--color-primary)' }}
           >
             Reset Filters
@@ -230,7 +256,10 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
                   </div>
                 </th>
               ))}
-              <th className="px-4 py-3 text-sm font-semibold select-none">
+              <th
+                className="px-4 py-2 text-left text-sm font-semibold"
+                style={{ color: 'var(--color-text)' }}
+              >
                 Status
               </th>
             </tr>
@@ -238,43 +267,37 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
           <tbody className="bg-[var(--color-surface)]">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-[var(--color-text-muted)]">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="animate-spin h-5 w-5 border-2 border-[var(--color-primary)] border-t-transparent rounded-full" />
-                    Loading transactions...
-                  </div>
-                </td>
-              </tr>
-            ) : isError ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[var(--color-danger)] font-medium bg-[var(--color-danger)]/10">
-                  Failed to load transactions.
-                </td>
-              </tr>
-            ) : sortedTransactions.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="px-4 py-12 text-center text-[var(--color-text-muted)]">
-                  No transactions found matching your filters.
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  No transactions found matching your filters
                 </td>
               </tr>
             ) : (
               sortedTransactions.map((tx) => (
-                <tr
-                  key={tx.id}
-                  onClick={() => handleRowClick(tx)}
-                  className="border-b border-[var(--color-border)] last:border-0 hover:bg-[var(--color-surface-muted)] cursor-pointer transition-colors"
-                >
-                  <td className="px-4 py-4 text-sm font-medium capitalize text-[var(--color-text)]">
+                <tr key={tx.id} className="border-b">
+                  <td
+                    className="px-4 py-3 text-sm capitalize"
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {tx.type}
                   </td>
-                  <td className="px-4 py-4 text-sm font-bold text-[var(--color-text)]">
-                    {tx.amount} XLM
+                  <td
+                    className="px-4 py-3 text-sm font-semibold"
+                    style={{ color: 'var(--color-text)' }}
+                  >
+                    ${tx.amount}
                   </td>
                   <td className="px-4 py-4 text-sm text-[var(--color-text-muted)]">
                     {typeof tx.date === 'string' ? tx.date.split('T')[0] : new Date(tx.timestamp || tx.date).toISOString().split('T')[0]}
                   </td>
-                  <td className="px-4 py-4 text-sm font-mono text-[var(--color-text-muted)]">
-                    {tx.member.substring(0, 5)}...{tx.member.substring(tx.member.length - 4)}
+                  <td
+                    className="px-4 py-3 text-sm font-mono"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    {tx.member}
                   </td>
                   <td className="px-4 py-4 text-sm">
                     <span
@@ -286,7 +309,7 @@ export const TransactionHistory: React.FC<TransactionHistoryProps> = ({ groupId 
                             : tx.status === 'pending'
                               ? 'var(--color-warning)'
                               : 'var(--color-danger)',
-                        color: 'var(--color-surface)',
+                        color: 'var(--color-primary-contrast)',
                       }}
                     >
                       {tx.status}

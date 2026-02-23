@@ -1,14 +1,17 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import '../styles/globals.css'
 import { Providers } from './providers'
 import { AppLayout } from '@/components/AppLayout'
+import { InstallPrompt } from '@/components/InstallPrompt'
+import { OfflineIndicator } from '@/components/OfflineIndicator'
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Ajo - Decentralized Savings Groups',
   description: 'Join and manage savings groups on the Stellar blockchain',
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.ico',
     apple: '/apple-touch-icon.png',
@@ -42,17 +45,40 @@ export const metadata: Metadata = {
     locale: 'en_US',
     type: 'website',
   },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'Ajo',
+  },
 }
 
-import { Toaster } from 'react-hot-toast'
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#3b82f6' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e40af' },
+  ],
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Ajo" />
+      </head>
       <body className={inter.className}>
         <div className="pattern-overlay gradient-mesh min-h-screen">
           <Providers>
             <AppLayout>{children}</AppLayout>
+            <InstallPrompt />
+            <OfflineIndicator />
           </Providers>
         </div>
       </body>
