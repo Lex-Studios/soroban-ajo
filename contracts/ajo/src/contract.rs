@@ -3,7 +3,7 @@ use soroban_sdk::{contract, contractimpl, Address, BytesN, Env, Vec};
 use crate::errors::AjoError;
 use crate::events;
 use crate::storage;
-use crate::types::{Group, GroupStatus};
+use crate::types::{Group, GroupMetadata, GroupStatus};
 use crate::utils;
 
 /// The main Ajo contract
@@ -503,5 +503,67 @@ impl AjoContract {
             cycle_end_time,
             current_time,
         })
+    }
+
+    /// Set or update metadata for an Ajo group.
+    ///
+    /// Only the group creator can set or update metadata.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `group_id` - The unique group identifier
+    /// * `name` - The name of the group
+    /// * `description` - The description of the group
+    /// * `rules` - The rules of the group
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If the group does not exist
+    /// * `Unauthorized` - If the caller is not the group creator
+    /// * `MetadataTooLong` - If any field exceeds its length limit
+    pub fn set_group_metadata(
+        env: Env,
+        group_id: u64,
+        name: soroban_sdk::String,
+        description: soroban_sdk::String,
+        rules: soroban_sdk::String,
+    ) -> Result<(), AjoError> {
+        // Validate lengths
+        if name.len() > crate::types::MAX_NAME_LENGTH
+            || description.len() > crate::types::MAX_DESCRIPTION_LENGTH
+            || rules.len() > crate::types::MAX_RULES_LENGTH
+        {
+            return Err(AjoError::MetadataTooLong);
+        }
+
+        // Get group to verify existence and check creator
+        let group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
+
+        // Require creator authentication
+        group.creator.require_auth();
+
+        // Create and store metadata
+        let metadata = GroupMetadata {
+            name,
+            description,
+            rules,
+        };
+        storage::store_group_metadata(&env, group_id, &metadata);
+
+        Ok(())
+    }
+
+    /// Get metadata for an Ajo group.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `group_id` - The unique group identifier
+    ///
+    /// # Returns
+    /// The group metadata
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If metadata for the group doesn't exist
+    pub fn get_group_metadata(env: Env, group_id: u64) -> Result<GroupMetadata, AjoError> {
+        storage::get_group_metadata(&env, group_id).ok_or(AjoError::GroupNotFound)
     }
 }

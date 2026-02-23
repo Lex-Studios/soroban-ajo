@@ -63,13 +63,12 @@ export const GroupAnalytics: React.FC = () => {
             <p className="text-sm text-gray-600 dark:text-slate-400">{metric.label}</p>
             <p className="text-2xl font-bold mt-2 text-gray-900 dark:text-slate-100">{metric.value}</p>
             <p
-              className={`text-sm mt-1 ${
-                metric.trend === 'up'
-                  ? 'text-green-600 dark:text-emerald-400'
-                  : metric.trend === 'down'
+              className={`text-sm mt-1 ${metric.trend === 'up'
+                ? 'text-green-600 dark:text-emerald-400'
+                : metric.trend === 'down'
                   ? 'text-red-600 dark:text-red-400'
                   : 'text-gray-600 dark:text-slate-400'
-              }`}
+                }`}
             >
               {metric.change}
             </p>
@@ -99,8 +98,6 @@ export const GroupAnalytics: React.FC = () => {
                     color: 'var(--chart-tooltip-text)',
                     borderRadius: '8px',
                   }}
-                    borderRadius: '8px',
-                  }}
                 />
                 <Area type="monotone" dataKey="amount" stroke="var(--chart-primary)" fillOpacity={1} fill="url(#colorAmount)" />
               </AreaChart>
@@ -121,12 +118,7 @@ export const GroupAnalytics: React.FC = () => {
                   contentStyle={{
                     backgroundColor: 'var(--chart-tooltip-bg)',
                     borderColor: 'var(--chart-tooltip-border)',
-                  contentStyle={{
-                    backgroundColor: 'var(--chart-tooltip-bg)',
-                    borderColor: 'var(--chart-tooltip-border)',
                     color: 'var(--chart-tooltip-text)',
-                    borderRadius: '8px',
-                  }}
                     borderRadius: '8px',
                   }}
                 />

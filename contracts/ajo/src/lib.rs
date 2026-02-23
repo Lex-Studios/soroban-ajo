@@ -1,4 +1,5 @@
 #![no_std]
+#![allow(dead_code)]
 
 //! # Soroban Ajo (Esusu) Contract
 //!

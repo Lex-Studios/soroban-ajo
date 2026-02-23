@@ -8,23 +8,20 @@ interface GroupsListProps {
   sortField?: SortField
   sortDirection?: SortDirection
   onSort?: (field: SortField) => void
-  sortField?: SortField
-  sortDirection?: SortDirection
-  onSort?: (field: SortField) => void
   onGroupClick?: (groupId: string) => void
   onJoinGroup?: (groupId: string) => void
 }
 
 export const GroupsList: React.FC<GroupsListProps> = ({
-  fetchGroups,
+  groups = [],
   isLoading = false,
   sortField = 'name',
   sortDirection = 'asc',
-  onSort = () => {},
+  onSort = () => { },
   onGroupClick,
   onJoinGroup,
 }) => {
-  const list = groups ?? []
+  const list = groups
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) return <span className="sort-indicator-inactive">↕</span>
     return <span className="sort-indicator-active">{sortDirection === 'asc' ? '↑' : '↓'}</span>
@@ -48,7 +45,7 @@ export const GroupsList: React.FC<GroupsListProps> = ({
     },
   }
 
-  if (loading || isLoading) {
+  if (isLoading) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700 overflow-hidden">
         <table className="table-premium">

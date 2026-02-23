@@ -144,3 +144,19 @@ pub struct GroupStatus {
     /// The ledger timestamp at the moment this status was queried.
     pub current_time: u64,
 }
+
+/// Optional metadata for a group.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroupMetadata {
+    /// Name of the group.
+    pub name: soroban_sdk::String,
+    /// Description of the group purpose or goal.
+    pub description: soroban_sdk::String,
+    /// Custom rules or guidelines for members.
+    pub rules: soroban_sdk::String,
+}
+
+pub const MAX_NAME_LENGTH: u32 = 50;
+pub const MAX_DESCRIPTION_LENGTH: u32 = 250;
+pub const MAX_RULES_LENGTH: u32 = 1000;

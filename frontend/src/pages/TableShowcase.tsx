@@ -25,31 +25,28 @@ export const TableShowcase: React.FC = () => {
           <div className="flex space-x-1 border-b border-gray-200">
             <button
               onClick={() => setActiveTab('basic')}
-              className={`px-6 py-3 font-medium text-sm transition-colors ${
-                activeTab === 'basic'
+              className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'basic'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Basic Example
             </button>
             <button
               onClick={() => setActiveTab('advanced')}
-              className={`px-6 py-3 font-medium text-sm transition-colors ${
-                activeTab === 'advanced'
+              className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'advanced'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Advanced Features
             </button>
             <button
               onClick={() => setActiveTab('density')}
-              className={`px-6 py-3 font-medium text-sm transition-colors ${
-                activeTab === 'density'
+              className={`px-6 py-3 font-medium text-sm transition-colors ${activeTab === 'density'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
-              }`}
+                }`}
             >
               Density Comparison
             </button>
@@ -240,3 +237,5 @@ export const TableShowcase: React.FC = () => {
     </div>
   )
 }
+
+export default TableShowcase

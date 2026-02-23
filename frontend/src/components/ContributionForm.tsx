@@ -111,6 +111,10 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
     setAmount(Number.isNaN(parsed) ? 0 : parsed)
   }
 
+  const handleBlur = () => {
+    setTouched(true)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setTouched(true)
@@ -125,14 +129,6 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
     setErrors([])
 
     try {
-      // TODO: Validate amount
-      // TODO: Call contribute function on smart contract
-      // TODO: Sign transaction with user's wallet
-      // TODO: Show success/error notification
-      // TODO: Update contributions in UI
-
-    try {
-      console.log('Contributing to group:', groupId, 'Amount:', amount)
       await new Promise((resolve) => setTimeout(resolve, 1500))
 
       // Simulate API call
@@ -240,11 +236,10 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
               onBlur={handleBlur}
               step="0.01"
               min="0"
-              className={`w-full pl-8 pr-4 py-2 border rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 transition-colors ${
-                hasError('amount')
-                  ? 'border-red-500 focus:ring-red-500'
-                  : 'border-gray-300 focus:ring-blue-500'
-              }`}
+              className={`w-full pl-8 pr-4 py-2 border rounded-lg text-lg font-semibold focus:outline-none focus:ring-2 transition-colors ${hasError('amount')
+                ? 'border-red-500 focus:ring-red-500'
+                : 'border-gray-300 focus:ring-blue-500'
+                }`}
               placeholder="0.00"
               required
             />
@@ -264,9 +259,8 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
           <div className="flex justify-between items-center text-sm">
             <span className="text-blue-900 font-medium">Your Balance:</span>
             <span
-              className={`font-semibold ${
-                hasError('balance') ? 'text-red-600' : 'text-blue-900'
-              }`}
+              className={`font-semibold ${hasError('balance') ? 'text-red-600' : 'text-blue-900'
+                }`}
             >
               ${userBalance.toFixed(2)}
             </span>
@@ -294,11 +288,10 @@ export const ContributionForm: React.FC<ContributionFormProps> = ({
         <button
           type="submit"
           disabled={loading || !isFormValid || !touched}
-          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 ${
-            loading || !isFormValid || !touched
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm hover:shadow-md'
-          } text-white`}
+          className={`w-full font-semibold py-3 rounded-lg transition-all duration-200 ${loading || !isFormValid || !touched
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-green-600 hover:bg-green-700 active:bg-green-800 shadow-sm hover:shadow-md'
+            } text-white`}
         >
           {loading ? 'Processing...' : 'Contribute'}
         </button>

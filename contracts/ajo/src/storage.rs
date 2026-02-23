@@ -28,6 +28,10 @@ pub enum StorageKey {
     /// Stored in persistent storage under `("PAYOUT", group_id, member)`.
     /// Value is `bool` — `true` means the payout has been distributed.
     PayoutReceived(u64, Address),
+
+    /// Optional metadata for a group.
+    /// Stored in persistent storage under `("METADATA", group_id)`.
+    GroupMetadata(u64),
 }
 
 impl StorageKey {
@@ -42,13 +46,14 @@ impl StorageKey {
     ///
     /// # Returns
     /// The [`Symbol`] corresponding to this key variant's prefix
-    pub fn to_symbol(&self, env: &Env) -> Symbol {
+    pub fn to_symbol(&self, _env: &Env) -> Symbol {
         match self {
             StorageKey::Admin => symbol_short!("ADMIN"),
             StorageKey::GroupCounter => symbol_short!("GCOUNTER"),
             StorageKey::Group(_) => symbol_short!("GROUP"),
             StorageKey::Contribution(_, _, _) => symbol_short!("CONTRIB"),
             StorageKey::PayoutReceived(_, _) => symbol_short!("PAYOUT"),
+            StorageKey::GroupMetadata(_) => symbol_short!("METADATA"),
         }
     }
 }
@@ -236,4 +241,41 @@ pub fn store_admin(env: &Env, admin: &Address) {
 pub fn get_admin(env: &Env) -> Option<Address> {
     let key = symbol_short!("ADMIN");
     env.storage().instance().get(&key)
+}
+
+/// Stores metadata for a group in persistent storage.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The unique identifier for the group
+/// * `metadata` - The metadata struct to store
+pub fn store_group_metadata(env: &Env, group_id: u64, metadata: &crate::types::GroupMetadata) {
+    let key = (symbol_short!("METADATA"), group_id);
+    env.storage().persistent().set(&key, metadata);
+}
+
+/// Retrieves metadata for a group from persistent storage.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The unique identifier for the group
+///
+/// # Returns
+/// `Some(GroupMetadata)` if it exists, `None` otherwise
+pub fn get_group_metadata(env: &Env, group_id: u64) -> Option<crate::types::GroupMetadata> {
+    let key = (symbol_short!("METADATA"), group_id);
+    env.storage().persistent().get(&key)
+}
+
+/// Checks if metadata exists for a group.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The unique identifier for the group
+///
+/// # Returns
+/// `true` if metadata exists, `false` otherwise
+pub fn has_group_metadata(env: &Env, group_id: u64) -> bool {
+    let key = (symbol_short!("METADATA"), group_id);
+    env.storage().persistent().has(&key)
 }
