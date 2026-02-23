@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { ThemeProvider } from '../context/ThemeContext'
-import { useTheme } from '@/hooks/useTheme'
+import { ThemeProvider, useTheme } from '../context/ThemeContext'
 
 function Harness() {
   const { mode, resolvedTheme, setMode, toggleTheme } = useTheme()
@@ -76,7 +75,7 @@ describe('ThemeProvider Additional Scenarios', () => {
     expect(screen.getByTestId('mode').textContent).toBe('light')
     expect(screen.getByTestId('resolved').textContent).toBe('light')
     expect(document.documentElement.getAttribute('data-theme')).toBe('light')
-    
+
     // When mode changes, resolved theme and DOM should update
     fireEvent.click(screen.getByText('set-dark'))
     expect(screen.getByTestId('mode').textContent).toBe('dark')
@@ -92,11 +91,11 @@ describe('ThemeProvider Additional Scenarios', () => {
       </ThemeProvider>
     )
     expect(screen.getByTestId('mode').textContent).toBe('light')
-    
+
     fireEvent.click(screen.getByText('toggle'))
     expect(screen.getByTestId('mode').textContent).toBe('dark')
     expect(localStorage.getItem('theme:mode')).toBe('dark')
-    
+
     fireEvent.click(screen.getByText('toggle'))
     expect(screen.getByTestId('mode').textContent).toBe('light')
     expect(localStorage.getItem('theme:mode')).toBe('light')
@@ -105,13 +104,13 @@ describe('ThemeProvider Additional Scenarios', () => {
   it('loads preference from localStorage on initialization', () => {
     localStorage.setItem('theme:mode', 'dark')
     mockMatchMedia(false)
-    
+
     render(
       <ThemeProvider>
         <Harness />
       </ThemeProvider>
     )
-    
+
     expect(screen.getByTestId('mode').textContent).toBe('dark')
     expect(screen.getByTestId('resolved').textContent).toBe('dark')
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark')

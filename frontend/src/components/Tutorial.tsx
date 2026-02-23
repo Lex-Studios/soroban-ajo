@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useTheme } from '@/hooks/useTheme'
+import { useTheme } from '@/context/ThemeContext'
 
 interface TutorialStep {
   title: string
@@ -10,16 +10,19 @@ interface TutorialStep {
 const steps: TutorialStep[] = [
   {
     title: 'Welcome to Soroban Ajo',
-    description: 'A decentralized rotational savings platform on Stellar. Join groups, contribute regularly, and receive payouts in rotation.',
+    description:
+      'A decentralized rotational savings platform on Stellar. Join groups, contribute regularly, and receive payouts in rotation.',
   },
   {
     title: 'Connect Your Wallet',
-    description: 'Click the wallet button in the top right to connect your Stellar wallet and start participating.',
+    description:
+      'Click the wallet button in the top right to connect your Stellar wallet and start participating.',
     highlight: 'wallet',
   },
   {
     title: 'Create or Join Groups',
-    description: 'Create a new savings group or browse existing groups to join. Set contribution amounts and cycle duration.',
+    description:
+      'Create a new savings group or browse existing groups to join. Set contribution amounts and cycle duration.',
     highlight: 'create',
   },
   {
@@ -63,7 +66,10 @@ export function Tutorial() {
   const step = steps[currentStep]
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" data-theme={resolvedTheme}>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      data-theme={resolvedTheme}
+    >
       <div className="theme-surface rounded-lg shadow-xl max-w-md w-full p-6">
         <div className="mb-4">
           <div className="flex justify-between items-center mb-2">
@@ -81,13 +87,20 @@ export function Tutorial() {
           <div className="w-full rounded-full h-2" style={{ background: 'var(--color-border)' }}>
             <div
               className="h-2 rounded-full transition-all"
-              style={{ width: `${((currentStep + 1) / steps.length) * 100}%`, background: 'var(--color-primary)' }}
+              style={{
+                width: `${((currentStep + 1) / steps.length) * 100}%`,
+                background: 'var(--color-primary)',
+              }}
             />
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--color-text)' }}>{step.title}</h2>
-        <p className="mb-6" style={{ color: 'var(--color-text-muted)' }}>{step.description}</p>
+        <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--color-text)' }}>
+          {step.title}
+        </h2>
+        <p className="mb-6" style={{ color: 'var(--color-text-muted)' }}>
+          {step.description}
+        </p>
 
         <div className="flex gap-3">
           {currentStep > 0 && (
