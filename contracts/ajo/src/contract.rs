@@ -12,7 +12,20 @@ pub struct AjoContract;
 
 #[contractimpl]
 impl AjoContract {
-    /// Initialize the contract with an admin
+    /// Initialize the contract with an admin.
+    ///
+    /// This function must be called exactly once to set up the contract's admin.
+    /// After initialization, the admin can upgrade the contract.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `admin` - Address of the contract administrator
+    ///
+    /// # Returns
+    /// `Ok(())` on successful initialization
+    ///
+    /// # Errors
+    /// * `AlreadyInitialized` - If the contract has already been initialized
     pub fn initialize(env: Env, admin: Address) -> Result<(), AjoError> {
         if storage::get_admin(&env).is_some() {
             return Err(AjoError::AlreadyInitialized);
@@ -21,7 +34,20 @@ impl AjoContract {
         Ok(())
     }
 
-    /// Upgrade the contract's Wasm
+    /// Upgrade the contract's Wasm bytecode.
+    ///
+    /// Only the admin can call this function. The contract will be updated to the
+    /// new Wasm code specified by `new_wasm_hash`.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `new_wasm_hash` - The hash of the new Wasm code (32 bytes)
+    ///
+    /// # Returns
+    /// `Ok(())` on successful upgrade
+    ///
+    /// # Errors
+    /// * `Unauthorized` - If the caller is not the admin
     pub fn upgrade(env: Env, new_wasm_hash: BytesN<32>) -> Result<(), AjoError> {
         let admin = storage::get_admin(&env).ok_or(AjoError::Unauthorized)?;
         admin.require_auth();
@@ -29,21 +55,28 @@ impl AjoContract {
         Ok(())
     }
 
-    /// Create a new Ajo group
+    /// Create a new Ajo group.
+    ///
+    /// Initializes a new rotating savings group with the specified parameters.
+    /// The creator becomes the first member and the contract validates all parameters
+    /// before storage. A unique group ID is assigned and returned.
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `creator` - Address of the group creator (automatically becomes first member)
-    /// * `contribution_amount` - Fixed amount each member contributes per cycle (in stroops)
-    /// * `cycle_duration` - Duration of each cycle in seconds
-    /// * `max_members` - Maximum number of members allowed in the group
+    /// * `contribution_amount` - Fixed amount each member contributes per cycle (in stroops, must be > 0)
+    /// * `cycle_duration` - Duration of each cycle in seconds (must be > 0)
+    /// * `max_members` - Maximum number of members allowed in the group (must be >= 2 and <= 100)
     ///
     /// # Returns
-    /// The unique group ID
+    /// The unique group ID assigned to the new group
     ///
     /// # Errors
-    /// * `InvalidAmount` - If contribution_amount <= 0
-    /// * `InvalidCycleDuration` - If cycle_duration == 0
-    /// * `InvalidMaxMembers` - If max_members < 2
+    /// * `ContributionAmountZero` - If contribution_amount == 0
+    /// * `ContributionAmountNegative` - If contribution_amount < 0
+    /// * `CycleDurationZero` - If cycle_duration == 0
+    /// * `MaxMembersBelowMinimum` - If max_members < 2
+    /// * `MaxMembersAboveLimit` - If max_members > 100
     pub fn create_group(
         env: Env,
         creator: Address,
@@ -91,13 +124,17 @@ impl AjoContract {
         Ok(group_id)
     }
 
-    /// Get group information
+    /// Get group information.
+    ///
+    /// Retrieves the complete group data including all members, cycle information,
+    /// and metadata.
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The unique group identifier
     ///
     /// # Returns
-    /// The group data
+    /// The group data containing group configuration and current state
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
@@ -105,13 +142,17 @@ impl AjoContract {
         storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)
     }
 
-    /// Get list of all members in a group
+    /// Get list of all members in a group.
+    ///
+    /// Returns the ordered list of all member addresses currently in the group.
+    /// Members are ordered by join time, with the creator being the first member.
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The unique group identifier
     ///
     /// # Returns
-    /// Vector of member addresses
+    /// Vector of member addresses in join order
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
@@ -120,15 +161,23 @@ impl AjoContract {
         Ok(group.members)
     }
 
-    /// Join an existing group
+    /// Join an existing group.
+    ///
+    /// Adds a new member to an active group if space is available.
+    /// The member's authentication is required. The member cannot join if they
+    /// are already a member, the group is full, or the group has completed all cycles.
     ///
     /// # Arguments
-    /// * `member` - Address of the member joining
+    /// * `env` - The Soroban contract environment
+    /// * `member` - Address of the member joining (must authenticate)
     /// * `group_id` - The group to join
+    ///
+    /// # Returns
+    /// `Ok(())` on successful group join
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
-    /// * `GroupFull` - If the group has reached max members
+    /// * `MaxMembersExceeded` - If the group has reached max members
     /// * `AlreadyMember` - If the address is already a member
     /// * `GroupComplete` - If the group has completed all cycles
     pub fn join_group(env: Env, member: Address, group_id: u64) -> Result<(), AjoError> {
@@ -165,14 +214,17 @@ impl AjoContract {
         Ok(())
     }
 
-    /// Check if an address is a member of a group
+    /// Check if an address is a member of a group.
+    ///
+    /// Returns whether the provided address is currently a member of the specified group.
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The group to check
     /// * `address` - The address to check
     ///
     /// # Returns
-    /// True if the address is a member, false otherwise
+    /// `true` if the address is a member, `false` otherwise
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
@@ -181,11 +233,19 @@ impl AjoContract {
         Ok(utils::is_member(&group.members, &address))
     }
 
-    /// Contribute to the current cycle
+    /// Contribute to the current cycle.
+    ///
+    /// Records a member's contribution for the current cycle. Each member can contribute
+    /// once per cycle. Authentication is required. Contributions are recorded but actual
+    /// fund transfers are handled by external payment systems.
     ///
     /// # Arguments
-    /// * `member` - Address making the contribution
+    /// * `env` - The Soroban contract environment
+    /// * `member` - Address making the contribution (must authenticate)
     /// * `group_id` - The group to contribute to
+    ///
+    /// # Returns
+    /// `Ok(())` on successful contribution recording
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
@@ -233,14 +293,18 @@ impl AjoContract {
         Ok(())
     }
 
-    /// Get contribution status for all members in the current cycle
+    /// Get contribution status for all members in a specific cycle.
+    ///
+    /// Returns an ordered list of all members paired with their contribution status
+    /// for the specified cycle. Member order matches the group's member list order.
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The group to check
-    /// * `cycle_number` - The cycle to check (use current_cycle from group)
+    /// * `cycle_number` - The cycle to check (typically use current_cycle from group)
     ///
     /// # Returns
-    /// Vector of (Address, bool) tuples indicating contribution status
+    /// Vector of (Address, bool) tuples where `true` indicates the member has contributed
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
@@ -258,21 +322,31 @@ impl AjoContract {
         ))
     }
 
-    /// Execute payout for the current cycle
+    /// Execute payout for the current cycle.
     ///
-    /// This function:
-    /// 1. Verifies all members have contributed
-    /// 2. Calculates and sends payout to the next member
-    /// 3. Advances the payout index and cycle
-    /// 4. Marks group as complete if all members have received payout
+    /// This is the core function that rotates payouts through group members.
+    /// It verifies that all members have contributed, calculates the total payout,
+    /// distributes funds to the next recipient, and advances the cycle.
+    /// When all members have received their payout, the group is marked complete.
+    ///
+    /// Process:
+    /// 1. Verifies all members have contributed in the current cycle
+    /// 2. Calculates total payout (contribution_amount × member_count)
+    /// 3. Records payout to the current recipient
+    /// 4. Emits payout event
+    /// 5. Advances to next cycle (or marks complete if done)
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The group to execute payout for
+    ///
+    /// # Returns
+    /// `Ok(())` on successful payout execution
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
     /// * `IncompleteContributions` - If not all members have contributed
-    /// * `GroupComplete` - If the group has already completed
+    /// * `GroupComplete` - If the group has already completed all payouts
     /// * `NoMembers` - If the group has no members (should never happen)
     pub fn execute_payout(env: Env, group_id: u64) -> Result<(), AjoError> {
         // Get group
@@ -333,13 +407,17 @@ impl AjoContract {
         Ok(())
     }
 
-    /// Check if a group has completed all cycles
+    /// Check if a group has completed all cycles.
+    ///
+    /// Returns whether the group has completed its full rotation,
+    /// meaning all members have received at least one payout.
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The group to check
     ///
     /// # Returns
-    /// True if the group is complete, false otherwise
+    /// `true` if the group has completed all payouts, `false` otherwise
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist
@@ -348,19 +426,25 @@ impl AjoContract {
         Ok(group.is_complete)
     }
 
-    /// Get comprehensive group status
+    /// Get comprehensive group status.
     ///
-    /// Returns detailed information about the group's current state including:
-    /// - Current cycle and progress
+    /// Returns a detailed snapshot of the group's current state, including cycle
+    /// information, contribution status, payout progress, and timing data.
+    /// This is the primary function for checking a group's overall progress.
+    ///
+    /// Returns information about:
+    /// - Current cycle number and progress
     /// - Next recipient for payout
-    /// - Contribution status (received, pending)
-    /// - Cycle timing information
+    /// - Members who have contributed and those who are pending
+    /// - Cycle timing (start time, end time, whether cycle is active)
+    /// - Whether the group is complete
     ///
     /// # Arguments
+    /// * `env` - The Soroban contract environment
     /// * `group_id` - The unique group identifier
     ///
     /// # Returns
-    /// Complete group status information
+    /// A `GroupStatus` struct containing comprehensive group state information
     ///
     /// # Errors
     /// * `GroupNotFound` - If the group does not exist

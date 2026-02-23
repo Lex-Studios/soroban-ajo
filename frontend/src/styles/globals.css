@@ -4,180 +4,76 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: 'rlig' 1, 'calt' 1;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display font-semibold;
-  }
-
-  h1 {
-    @apply text-4xl lg:text-5xl;
-  }
-
-  h2 {
-    @apply text-3xl lg:text-4xl;
-  }
-
-  h3 {
-    @apply text-2xl lg:text-3xl;
-  }
-
-  h4 {
-    @apply text-xl lg:text-2xl;
-  }
-
-  h5 {
-    @apply text-lg lg:text-xl;
-  }
-
-  h6 {
-    @apply text-base lg:text-lg;
-  }
+/* Global theme tokens - light mode (default) */
+:root {
+  --foreground-rgb: 15, 23, 42;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 241, 245, 249;
+  --card-bg: 255, 255, 255;
+  --card-border: 226, 232, 240;
+  --muted: 100, 116, 139;
+  --primary: 79, 70, 229;
+  --primary-foreground: 255, 255, 255;
+  --accent: 168, 85, 247;
+  --success: 16, 185, 129;
+  --error: 239, 68, 68;
+  --warning: 245, 158, 11;
+  --info: 6, 182, 212;
+  /* Recharts light mode */
+  --chart-primary: #6366f1;
+  --chart-secondary: #8b5cf6;
+  --chart-tooltip-bg: #ffffff;
+  --chart-tooltip-border: #e2e8f0;
+  --chart-tooltip-text: #1e293b;
+  --chart-grid-line: #e2e8f0;
+  --chart-tick: #64748b;
 }
 
-@layer components {
-  /* Button Base */
-  .btn {
-    @apply inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
-    @apply disabled:opacity-50 disabled:pointer-events-none;
-  }
+/* Dark mode - applied when .dark is on html */
+.dark {
+  --foreground-rgb: 248, 250, 252;
+  --background-start-rgb: 15, 23, 42;
+  --background-end-rgb: 30, 41, 59;
+  --card-bg: 30, 41, 59;
+  --card-border: 51, 65, 85;
+  --muted: 148, 163, 184;
+  --primary: 99, 102, 241;
+  --primary-foreground: 255, 255, 255;
+  --accent: 192, 132, 252;
+  --success: 52, 211, 153;
+  --error: 248, 113, 113;
+  --warning: 251, 191, 36;
+  --info: 34, 211, 238;
+  /* Recharts dark mode */
+  --chart-primary: #818cf8;
+  --chart-secondary: #a78bfa;
+  --chart-tooltip-bg: #1e293b;
+  --chart-tooltip-border: #334155;
+  --chart-tooltip-text: #f1f5f9;
+  --chart-grid-line: #334155;
+  --chart-tick: #94a3b8;
+}
 
-  .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800;
-    @apply shadow-sm hover:shadow-md;
-  }
-
-  .btn-secondary {
-    @apply bg-surface-100 text-surface-900 hover:bg-surface-200 active:bg-surface-300;
-    @apply border border-surface-300;
-  }
-
-  .btn-ghost {
-    @apply hover:bg-surface-100 active:bg-surface-200;
-  }
-
-  .btn-sm {
-    @apply px-3 py-1.5 text-sm;
-  }
-
-  .btn-md {
-    @apply px-4 py-2 text-base;
-  }
-
-  .btn-lg {
-    @apply px-6 py-3 text-lg;
-  }
-
-  /* Card Base */
-  .card {
-    @apply bg-white rounded-xl border border-surface-200;
-    @apply shadow-card hover:shadow-card-hover transition-shadow duration-200;
-  }
-
-  .card-interactive {
-    @apply cursor-pointer active:shadow-card-active;
-  }
-
-  /* Input Base */
-  .input {
-    @apply w-full px-4 py-2 rounded-lg border border-surface-300;
-    @apply bg-white text-surface-900 placeholder:text-surface-400;
-    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
-    @apply transition-all duration-200;
-    @apply disabled:bg-surface-100 disabled:cursor-not-allowed;
-  }
-
-  .input-error {
-    @apply border-error focus:ring-error;
-  }
-
-  /* Badge */
-  .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
-  }
-
-  .badge-primary {
-    @apply bg-primary-100 text-primary-800;
-  }
-
-  .badge-success {
-    @apply bg-green-100 text-green-800;
-  }
-
-  .badge-error {
-    @apply bg-red-100 text-red-800;
-  }
-
-  .badge-warning {
-    @apply bg-yellow-100 text-yellow-800;
-  }
-
-  .badge-info {
-    @apply bg-cyan-100 text-cyan-800;
-  }
-
-  /* Skeleton Loading */
-  .skeleton {
-    @apply bg-surface-200 animate-pulse rounded;
-  }
-
-  /* Focus Visible */
-  .focus-ring {
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
-  }
-
-  /* Scrollbar */
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: theme('colors.surface.300') transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-surface-300 rounded-full;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    @apply bg-surface-400;
-  }
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--background-start-rgb)),
+    rgb(var(--background-end-rgb))
+  );
+  min-height: 100vh;
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
+}
 
-  /* Animation Utilities */
-  .animate-in {
-    animation: fadeIn var(--duration-base) var(--ease-out);
-  }
-
-  .animate-out {
-    animation: fadeOut var(--duration-base) var(--ease-in);
-  }
-
-  /* Gradient Text */
-  .gradient-text {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-accent-600;
+@layer components {
+  /* Skeleton - theme aware */
+  .skeleton {
+    @apply bg-gray-200 dark:bg-gray-700 animate-pulse;
   }
 
   /* Truncate Multi-line */

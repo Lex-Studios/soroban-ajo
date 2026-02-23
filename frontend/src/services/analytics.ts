@@ -5,6 +5,7 @@ export interface AnalyticsEvent {
   action: string
   label?: string
   value?: number
+  timestamp?: number
   metadata?: Record<string, any>
   timestamp: number
   sessionId: string

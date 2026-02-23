@@ -38,14 +38,14 @@ export default function Dashboard() {
   }
 
   const EmptyState = () => (
-    <div className="animate-fade-in-up text-center py-20 px-6 bg-white rounded-2xl border border-surface-200/80">
+    <div className="animate-fade-in-up text-center py-20 px-6 bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700">
       <div className="empty-state-icon mb-6 animate-float">
-        <svg className="h-10 w-10 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="h-10 w-10 text-primary-500 dark:text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       </div>
-      <h3 className="text-xl font-bold text-surface-900 mb-2">No groups found</h3>
-      <p className="text-sm text-surface-500 max-w-sm mx-auto leading-relaxed">
+      <h3 className="text-xl font-bold text-surface-900 dark:text-slate-100 mb-2">No groups found</h3>
+      <p className="text-sm text-surface-500 dark:text-slate-400 max-w-sm mx-auto leading-relaxed">
         {searchQuery || filterStatus !== 'all'
           ? 'Try adjusting your filters or search query'
           : 'Get started by creating or joining a savings group'}
@@ -72,10 +72,10 @@ export default function Dashboard() {
           <div className="animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-surface-900 tracking-tight">
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-surface-900 dark:text-slate-100 tracking-tight">
                   Dashboard
                 </h1>
-                <p className="mt-2 text-surface-500 text-sm sm:text-base">
+                <p className="mt-2 text-surface-500 dark:text-slate-400 text-sm sm:text-base">
                   Manage your savings groups
                 </p>
               </div>
@@ -161,24 +161,24 @@ export default function Dashboard() {
           {/* Results Count */}
           {!isLoading && (
             <div className="text-xs font-medium text-surface-400 tracking-wide uppercase">
-              Showing {groups.length} of {totalGroups} groups
+              Showing {(groups ?? []).length} of {totalGroups} groups
             </div>
           )}
         </div>
 
         {/* Content Area */}
         <div className="animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-          {!isLoading && groups.length === 0 ? (
+          {!isLoading && (groups ?? []).length === 0 ? (
             <EmptyState />
           ) : viewMode === 'grid' ? (
             <GroupsGrid
-              groups={groups}
+              groups={groups ?? []}
               isLoading={isLoading}
               onGroupClick={handleGroupClick}
             />
           ) : (
             <GroupsList
-              groups={groups}
+              groups={groups ?? []}
               isLoading={isLoading}
               sortField={sortField}
               sortDirection={sortDirection}

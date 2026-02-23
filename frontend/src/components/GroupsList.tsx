@@ -1,14 +1,13 @@
-// Issue #28: Build dashboard with groups list
-// Complexity: Medium (150 pts)
-// Status: Complete - Premium styled list view with sortable columns
-
-import React from 'react'
+import { SortDirection, SortField } from '@/hooks/useDashboard'
 import { Group } from '@/types'
-import { SortField, SortDirection } from '@/hooks/useDashboard'
+import React from 'react'
 
 interface GroupsListProps {
   groups?: Group[]
   isLoading?: boolean
+  sortField?: SortField
+  sortDirection?: SortDirection
+  onSort?: (field: SortField) => void
   sortField?: SortField
   sortDirection?: SortDirection
   onSort?: (field: SortField) => void
@@ -17,7 +16,7 @@ interface GroupsListProps {
 }
 
 export const GroupsList: React.FC<GroupsListProps> = ({
-  groups = [],
+  fetchGroups,
   isLoading = false,
   sortField = 'name',
   sortDirection = 'asc',
@@ -25,10 +24,9 @@ export const GroupsList: React.FC<GroupsListProps> = ({
   onGroupClick,
   onJoinGroup,
 }) => {
+  const list = groups ?? []
   const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) {
-      return <span className="sort-indicator-inactive">↕</span>
-    }
+    if (sortField !== field) return <span className="sort-indicator-inactive">↕</span>
     return <span className="sort-indicator-active">{sortDirection === 'asc' ? '↑' : '↓'}</span>
   }
 
@@ -50,13 +48,13 @@ export const GroupsList: React.FC<GroupsListProps> = ({
     },
   }
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return (
-      <div className="bg-white rounded-2xl border border-surface-200/80 overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700 overflow-hidden">
         <table className="table-premium">
           <thead>
             <tr>
-              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
+              <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 dark:text-slate-400 uppercase tracking-wider">
                 Name
               </th>
               <th className="px-5 py-3.5 text-left text-xs font-semibold text-surface-500 uppercase tracking-wider">
@@ -106,7 +104,7 @@ export const GroupsList: React.FC<GroupsListProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-surface-200/80 overflow-hidden animate-fade-in">
+    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-surface-200/80 dark:border-slate-700 overflow-hidden animate-fade-in">
       <table className="table-premium">
         <thead>
           <tr>
@@ -135,7 +133,7 @@ export const GroupsList: React.FC<GroupsListProps> = ({
           </tr>
         </thead>
         <tbody>
-          {groups.map((group, i) => {
+          {list.map((group, i) => {
             const config = statusConfig[group.status] || statusConfig.active
             return (
               <tr
@@ -145,16 +143,18 @@ export const GroupsList: React.FC<GroupsListProps> = ({
                 onClick={() => onGroupClick?.(group.id)}
               >
                 <td className="whitespace-nowrap">
-                  <div className="text-sm font-semibold text-surface-900">{group.name}</div>
+                  <div className="text-sm font-semibold text-surface-900 dark:text-slate-100">
+                    {group.name}
+                  </div>
                   {group.description && (
-                    <div className="text-xs text-surface-400 truncate max-w-xs mt-0.5">
+                    <div className="text-xs text-surface-400 dark:text-slate-500 truncate max-w-xs mt-0.5">
                       {group.description}
                     </div>
                   )}
                 </td>
                 <td className="whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-surface-700">
+                    <span className="text-sm font-medium text-surface-700 dark:text-slate-300">
                       {group.currentMembers}/{group.maxMembers}
                     </span>
                     <div className="w-12 h-1.5 rounded-full bg-surface-100 overflow-hidden">
@@ -165,10 +165,10 @@ export const GroupsList: React.FC<GroupsListProps> = ({
                     </div>
                   </div>
                 </td>
-                <td className="whitespace-nowrap text-sm font-semibold text-surface-800">
+                <td className="whitespace-nowrap text-sm font-semibold text-surface-800 dark:text-slate-200">
                   ${group.totalContributions.toFixed(2)}
                 </td>
-                <td className="whitespace-nowrap text-sm text-surface-600">
+                <td className="whitespace-nowrap text-sm text-surface-600 dark:text-slate-400">
                   {new Date(group.nextPayoutDate).toLocaleDateString()}
                 </td>
                 <td className="whitespace-nowrap">
