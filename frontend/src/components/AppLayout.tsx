@@ -60,6 +60,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Skip Links */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      <a
+        href="#navigation"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-40 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:shadow-lg"
+      >
+        Skip to navigation
+      </a>
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -78,7 +92,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
 
           {/* Navigation */}
-          <nav className="flex gap-1 -mb-px overflow-x-auto">
+          <nav id="navigation" className="flex gap-1 -mb-px overflow-x-auto" aria-label="Main navigation">
             {navLinks.map((link) => {
               const isActive = pathname === link.href
               return (
@@ -86,13 +100,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   key={link.href}
                   href={link.href}
                   data-tour={link.dataTour}
+                  aria-current={isActive ? 'page' : undefined}
                   className={`flex items-center gap-2 px-4 py-3 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                     isActive
                       ? 'border-blue-600 text-blue-600'
                       : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                   }`}
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -109,7 +124,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       </header>
 
       {/* Main Content */}
-      <main>{children}</main>
+      <main id="main-content" tabIndex={-1}>{children}</main>
 
       {/* Onboarding & Tour */}
       <Onboarding />

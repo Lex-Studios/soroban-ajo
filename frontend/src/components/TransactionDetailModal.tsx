@@ -4,6 +4,8 @@ import { X, ExternalLink, ShieldCheck, AlertCircle, Clock } from 'lucide-react'
 import { useTheme } from '@/context/ThemeContext'
 import { clsx } from 'clsx'
 import { format } from 'date-fns'
+import { useFocusTrap } from '@/hooks/useFocusTrap'
+import { useEscapeKey } from '@/hooks/useKeyboardNavigation'
 
 interface TransactionDetailModalProps {
     transaction: Transaction | null
@@ -17,6 +19,8 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     onClose,
 }) => {
     const { resolvedTheme } = useTheme()
+    const modalRef = useFocusTrap(isOpen)
+    useEscapeKey(onClose, isOpen)
 
     if (!isOpen || !transaction) return null
 
@@ -47,7 +51,12 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
     }
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+        >
             <div
                 className="fixed inset-0 bg-black/40 backdrop-blur-sm"
                 onClick={onClose}
@@ -55,6 +64,7 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             />
 
             <div
+                ref={modalRef as React.RefObject<HTMLDivElement>}
                 className={clsx(
                     "relative w-full max-w-lg rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200",
                     resolvedTheme === 'dark' ? "bg-gray-900 border border-gray-800" : "bg-white"
@@ -62,14 +72,15 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
             >
                 {/* Header */}
                 <div className="flex justify-between items-center p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <h3 id="modal-title" className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                         Transaction Details
                     </h3>
                     <button
                         onClick={onClose}
                         className="p-1.5 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-500 transition-colors"
+                        aria-label="Close modal"
                     >
-                        <X className="w-5 h-5" />
+                        <X className="w-5 h-5" aria-hidden="true" />
                     </button>
                 </div>
 
@@ -130,8 +141,9 @@ export const TransactionDetailModal: React.FC<TransactionDetailModalProps> = ({
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
                                 onClick={(e) => e.stopPropagation()}
+                                aria-label="View transaction on Stellar Expert (opens in new tab)"
                             >
-                                View on Stellar Expert <ExternalLink className="w-3.5 h-3.5" />
+                                View on Stellar Expert <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />
                             </a>
                         </div>
                     </div>
