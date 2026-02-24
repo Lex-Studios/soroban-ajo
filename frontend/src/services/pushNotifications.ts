@@ -13,23 +13,19 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 
 export async function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
-    console.warn('Service workers not supported');
     return null;
   }
 
   try {
     const registration = await navigator.serviceWorker.register('/sw.js');
-    console.log('Service Worker registered:', registration);
     return registration;
   } catch (error) {
-    console.error('Service Worker registration failed:', error);
     return null;
   }
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!('Notification' in window)) {
-    console.warn('Notifications not supported');
     return 'denied';
   }
 
@@ -51,7 +47,6 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
 
   const permission = await requestNotificationPermission();
   if (permission !== 'granted') {
-    console.warn('Notification permission denied');
     return null;
   }
 
@@ -61,10 +56,8 @@ export async function subscribeToPushNotifications(): Promise<PushSubscription |
       applicationServerKey: VAPID_PUBLIC_KEY ? urlBase64ToUint8Array(VAPID_PUBLIC_KEY) : undefined,
     });
 
-    console.log('Push subscription:', subscription);
     return subscription;
   } catch (error) {
-    console.error('Failed to subscribe to push notifications:', error);
     return null;
   }
 }
@@ -78,12 +71,10 @@ export async function unsubscribeFromPushNotifications(): Promise<boolean> {
 
     if (subscription) {
       await subscription.unsubscribe();
-      console.log('Unsubscribed from push notifications');
       return true;
     }
     return false;
   } catch (error) {
-    console.error('Failed to unsubscribe:', error);
     return false;
   }
 }
