@@ -406,3 +406,130 @@ pub fn add_to_penalty_pool(env: &Env, group_id: u64, cycle: u32, penalty: i128) 
     let current = get_cycle_penalty_pool(env, group_id, cycle);
     store_cycle_penalty_pool(env, group_id, cycle, current + penalty);
 }
+
+/// Stores a refund request for a group.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group the refund request is for
+/// * `request` - The refund request data
+pub fn store_refund_request(env: &Env, group_id: u64, request: &crate::types::RefundRequest) {
+    let key = (symbol_short!("REFREQ"), group_id);
+    env.storage().persistent().set(&key, request);
+}
+
+/// Retrieves a refund request for a group.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group to check
+///
+/// # Returns
+/// `Some(RefundRequest)` if exists, `None` otherwise
+pub fn get_refund_request(env: &Env, group_id: u64) -> Option<crate::types::RefundRequest> {
+    let key = (symbol_short!("REFREQ"), group_id);
+    env.storage().persistent().get(&key)
+}
+
+/// Checks if a refund request exists for a group.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group to check
+///
+/// # Returns
+/// `true` if a refund request exists, `false` otherwise
+pub fn has_refund_request(env: &Env, group_id: u64) -> bool {
+    let key = (symbol_short!("REFREQ"), group_id);
+    env.storage().persistent().has(&key)
+}
+
+/// Removes a refund request from storage.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group to remove the request for
+pub fn remove_refund_request(env: &Env, group_id: u64) {
+    let key = (symbol_short!("REFREQ"), group_id);
+    env.storage().persistent().remove(&key);
+}
+
+/// Stores a member's vote on a refund request.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `member` - The voting member's address
+/// * `vote` - The vote record
+pub fn store_refund_vote(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+    vote: &crate::types::RefundVote,
+) {
+    let key = (symbol_short!("REFVOTE"), group_id, member);
+    env.storage().persistent().set(&key, vote);
+}
+
+/// Retrieves a member's vote on a refund request.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `member` - The member's address
+///
+/// # Returns
+/// `Some(RefundVote)` if the member has voted, `None` otherwise
+pub fn get_refund_vote(env: &Env, group_id: u64, member: &Address) -> Option<crate::types::RefundVote> {
+    let key = (symbol_short!("REFVOTE"), group_id, member);
+    env.storage().persistent().get(&key)
+}
+
+/// Checks if a member has voted on a refund request.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `member` - The member's address
+///
+/// # Returns
+/// `true` if the member has voted, `false` otherwise
+pub fn has_voted(env: &Env, group_id: u64, member: &Address) -> bool {
+    let key = (symbol_short!("REFVOTE"), group_id, member);
+    env.storage().persistent().has(&key)
+}
+
+/// Stores a refund record.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `member` - The member receiving the refund
+/// * `record` - The refund record
+pub fn store_refund_record(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+    record: &crate::types::RefundRecord,
+) {
+    let key = (symbol_short!("REFUND"), group_id, member);
+    env.storage().persistent().set(&key, record);
+}
+
+/// Retrieves a refund record for a member.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `member` - The member's address
+///
+/// # Returns
+/// `Some(RefundRecord)` if exists, `None` otherwise
+pub fn get_refund_record(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+) -> Option<crate::types::RefundRecord> {
+    let key = (symbol_short!("REFUND"), group_id, member);
+    env.storage().persistent().get(&key)
+}

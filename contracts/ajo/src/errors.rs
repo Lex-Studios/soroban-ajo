@@ -85,4 +85,34 @@ pub enum AjoError {
 
     /// Metadata field exceeds maximum length.
     MetadataTooLong = 27,
+
+    /// Cannot cancel group after first payout.
+    CannotCancelAfterPayout = 28,
+
+    /// Only the group creator can cancel the group.
+    OnlyCreatorCanCancel = 29,
+
+    /// Refund request already exists for this group.
+    RefundRequestExists = 30,
+
+    /// No active refund request for this group.
+    NoRefundRequest = 31,
+
+    /// Member has already voted on this refund request.
+    AlreadyVoted = 32,
+
+    /// Voting period has not ended yet.
+    VotingPeriodActive = 33,
+
+    /// Voting period has ended.
+    VotingPeriodEnded = 34,
+
+    /// Refund request was not approved.
+    RefundNotApproved = 35,
+
+    /// Refund has already been executed.
+    RefundAlreadyExecuted = 36,
+
+    /// Cannot request refund before cycle deadline.
+    CycleNotExpired = 37,
 }

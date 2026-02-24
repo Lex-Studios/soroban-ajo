@@ -179,6 +179,7 @@ impl AjoContract {
             is_complete: false,
             grace_period,
             penalty_rate,
+            state: crate::types::GroupState::Active,
         };
 
         // Store group
@@ -335,6 +336,11 @@ impl AjoContract {
         // Get group
         let group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
 
+        // Check if group is cancelled
+        if group.state == crate::types::GroupState::Cancelled {
+            return Err(AjoError::GroupCancelled);
+        }
+
         // Check if group is complete
         if group.is_complete {
             return Err(AjoError::GroupComplete);
@@ -480,6 +486,11 @@ impl AjoContract {
         // Get group
         let mut group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
 
+        // Check if group is cancelled
+        if group.state == crate::types::GroupState::Cancelled {
+            return Err(AjoError::GroupCancelled);
+        }
+
         // Check if group is complete
         if group.is_complete {
             return Err(AjoError::GroupComplete);
@@ -547,6 +558,7 @@ impl AjoContract {
         if group.payout_index >= group.members.len() {
             // All members have received payout - mark complete
             group.is_complete = true;
+            group.state = crate::types::GroupState::Complete;
             events::emit_group_completed(&env, group_id);
         } else {
             // Advance to next cycle
@@ -816,5 +828,426 @@ impl AjoContract {
         storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
 
         Ok(storage::get_cycle_penalty_pool(&env, group_id, cycle))
+    }
+
+    /// Cancel a group and refund all members.
+    ///
+    /// Only the group creator can cancel a group, and only before the first payout.
+    /// All members who have contributed will receive their contributions back.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `creator` - Address of the group creator
+    /// * `group_id` - The unique group identifier
+    ///
+    /// # Returns
+    /// `Ok(())` on successful cancellation
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If the group doesn't exist
+    /// * `OnlyCreatorCanCancel` - If the caller is not the group creator
+    /// * `CannotCancelAfterPayout` - If any payout has been executed
+    /// * `GroupCancelled` - If the group is already cancelled
+    /// * `GroupComplete` - If the group is already complete
+    pub fn cancel_group(env: Env, creator: Address, group_id: u64) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        creator.require_auth();
+
+        let mut group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
+
+        // Verify creator
+        if group.creator != creator {
+            return Err(AjoError::OnlyCreatorCanCancel);
+        }
+
+        // Check if already cancelled or complete
+        if group.state == crate::types::GroupState::Cancelled {
+            return Err(AjoError::GroupCancelled);
+        }
+        if group.state == crate::types::GroupState::Complete {
+            return Err(AjoError::GroupComplete);
+        }
+
+        // Cannot cancel after first payout
+        if group.payout_index > 0 {
+            return Err(AjoError::CannotCancelAfterPayout);
+        }
+
+        // Calculate refunds for each member who contributed
+        for member in group.members.iter() {
+            if storage::has_contributed(&env, group_id, group.current_cycle, &member) {
+                let refund_amount = group.contribution_amount;
+
+                // Store refund record
+                let refund_record = crate::types::RefundRecord {
+                    group_id,
+                    member: member.clone(),
+                    amount: refund_amount,
+                    timestamp: utils::get_current_timestamp(&env),
+                    reason: crate::types::RefundReason::CreatorCancellation,
+                };
+                storage::store_refund_record(&env, group_id, &member, &refund_record);
+
+                // Emit refund event
+                events::emit_refund_processed(&env, group_id, &member, refund_amount, 0);
+            }
+        }
+
+        // Update group state
+        group.state = crate::types::GroupState::Cancelled;
+        storage::store_group(&env, group_id, &group);
+
+        // Emit cancellation event
+        events::emit_group_cancelled(
+            &env,
+            group_id,
+            &creator,
+            group.members.len(),
+            group.contribution_amount,
+        );
+
+        Ok(())
+    }
+
+    /// Request a refund for a group that has failed to complete.
+    ///
+    /// Any member can request a refund if the cycle deadline has passed and
+    /// not all members have contributed. This initiates a voting period where
+    /// members can vote on whether to approve the refund.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `requester` - Address of the member requesting the refund
+    /// * `group_id` - The unique group identifier
+    ///
+    /// # Returns
+    /// `Ok(())` on successful request creation
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If the group doesn't exist
+    /// * `NotMember` - If the requester is not a member
+    /// * `GroupCancelled` - If the group is already cancelled
+    /// * `GroupComplete` - If the group is already complete
+    /// * `CycleNotExpired` - If the cycle deadline hasn't passed
+    /// * `RefundRequestExists` - If a refund request already exists
+    pub fn request_refund(env: Env, requester: Address, group_id: u64) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        requester.require_auth();
+
+        let group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
+
+        // Verify member
+        if !utils::is_member(&group.members, &requester) {
+            return Err(AjoError::NotMember);
+        }
+
+        // Check group state
+        if group.state == crate::types::GroupState::Cancelled {
+            return Err(AjoError::GroupCancelled);
+        }
+        if group.state == crate::types::GroupState::Complete {
+            return Err(AjoError::GroupComplete);
+        }
+
+        // Check if cycle has expired (past grace period)
+        let now = utils::get_current_timestamp(&env);
+        let grace_end = utils::get_grace_period_end(&group);
+        if now <= grace_end {
+            return Err(AjoError::CycleNotExpired);
+        }
+
+        // Check if refund request already exists
+        if storage::has_refund_request(&env, group_id) {
+            return Err(AjoError::RefundRequestExists);
+        }
+
+        // Create refund request
+        let voting_deadline = now + crate::types::VOTING_PERIOD;
+        let request = crate::types::RefundRequest {
+            group_id,
+            requester: requester.clone(),
+            created_at: now,
+            voting_deadline,
+            votes_for: 0,
+            votes_against: 0,
+            executed: false,
+            approved: false,
+        };
+
+        storage::store_refund_request(&env, group_id, &request);
+
+        // Emit event
+        events::emit_refund_requested(&env, group_id, &requester, voting_deadline);
+
+        Ok(())
+    }
+
+    /// Vote on a refund request.
+    ///
+    /// Members can vote in favor or against a refund request during the voting period.
+    /// Each member can only vote once.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `voter` - Address of the voting member
+    /// * `group_id` - The unique group identifier
+    /// * `in_favor` - true to vote in favor, false to vote against
+    ///
+    /// # Returns
+    /// `Ok(())` on successful vote
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If the group doesn't exist
+    /// * `NotMember` - If the voter is not a member
+    /// * `NoRefundRequest` - If no refund request exists
+    /// * `AlreadyVoted` - If the member has already voted
+    /// * `VotingPeriodEnded` - If the voting period has ended
+    pub fn vote_refund(
+        env: Env,
+        voter: Address,
+        group_id: u64,
+        in_favor: bool,
+    ) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        voter.require_auth();
+
+        let group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
+
+        // Verify member
+        if !utils::is_member(&group.members, &voter) {
+            return Err(AjoError::NotMember);
+        }
+
+        // Get refund request
+        let mut request = storage::get_refund_request(&env, group_id)
+            .ok_or(AjoError::NoRefundRequest)?;
+
+        // Check if already voted
+        if storage::has_voted(&env, group_id, &voter) {
+            return Err(AjoError::AlreadyVoted);
+        }
+
+        // Check voting period
+        let now = utils::get_current_timestamp(&env);
+        if now > request.voting_deadline {
+            return Err(AjoError::VotingPeriodEnded);
+        }
+
+        // Record vote
+        let vote = crate::types::RefundVote {
+            group_id,
+            voter: voter.clone(),
+            in_favor,
+            timestamp: now,
+        };
+        storage::store_refund_vote(&env, group_id, &voter, &vote);
+
+        // Update vote counts
+        if in_favor {
+            request.votes_for += 1;
+        } else {
+            request.votes_against += 1;
+        }
+        storage::store_refund_request(&env, group_id, &request);
+
+        // Emit event
+        events::emit_refund_vote(&env, group_id, &voter, in_favor);
+
+        Ok(())
+    }
+
+    /// Execute a refund after voting period ends.
+    ///
+    /// Can be called by any member after the voting period ends. If the refund
+    /// is approved (>51% votes in favor), all members receive proportional refunds
+    /// based on their contributions.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `executor` - Address executing the refund
+    /// * `group_id` - The unique group identifier
+    ///
+    /// # Returns
+    /// `Ok(())` on successful execution
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If the group doesn't exist
+    /// * `NoRefundRequest` - If no refund request exists
+    /// * `VotingPeriodActive` - If the voting period hasn't ended
+    /// * `RefundNotApproved` - If the refund wasn't approved
+    /// * `RefundAlreadyExecuted` - If the refund has already been executed
+    pub fn execute_refund(env: Env, executor: Address, group_id: u64) -> Result<(), AjoError> {
+        pausable::ensure_not_paused(&env)?;
+        executor.require_auth();
+
+        let mut group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
+        let mut request = storage::get_refund_request(&env, group_id)
+            .ok_or(AjoError::NoRefundRequest)?;
+
+        // Check if already executed
+        if request.executed {
+            return Err(AjoError::RefundAlreadyExecuted);
+        }
+
+        // Check voting period ended
+        let now = utils::get_current_timestamp(&env);
+        if now <= request.voting_deadline {
+            return Err(AjoError::VotingPeriodActive);
+        }
+
+        // Calculate approval percentage
+        let total_votes = request.votes_for + request.votes_against;
+        let approval_percentage = if total_votes > 0 {
+            (request.votes_for * 100) / total_votes
+        } else {
+            0
+        };
+
+        // Check if approved
+        if approval_percentage < crate::types::REFUND_APPROVAL_THRESHOLD {
+            request.executed = true;
+            request.approved = false;
+            storage::store_refund_request(&env, group_id, &request);
+            return Err(AjoError::RefundNotApproved);
+        }
+
+        // Process refunds for all members who contributed
+        for member in group.members.iter() {
+            if storage::has_contributed(&env, group_id, group.current_cycle, &member) {
+                let refund_amount = group.contribution_amount;
+
+                // Store refund record
+                let refund_record = crate::types::RefundRecord {
+                    group_id,
+                    member: member.clone(),
+                    amount: refund_amount,
+                    timestamp: now,
+                    reason: crate::types::RefundReason::MemberVote,
+                };
+                storage::store_refund_record(&env, group_id, &member, &refund_record);
+
+                // Emit refund event
+                events::emit_refund_processed(&env, group_id, &member, refund_amount, 1);
+            }
+        }
+
+        // Update request and group state
+        request.executed = true;
+        request.approved = true;
+        storage::store_refund_request(&env, group_id, &request);
+
+        group.state = crate::types::GroupState::Cancelled;
+        storage::store_group(&env, group_id, &group);
+
+        Ok(())
+    }
+
+    /// Emergency refund by admin.
+    ///
+    /// Allows the contract admin to force a refund in case of disputes or emergencies.
+    /// All members who have contributed receive their contributions back.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `admin` - Address of the contract admin
+    /// * `group_id` - The unique group identifier
+    ///
+    /// # Returns
+    /// `Ok(())` on successful emergency refund
+    ///
+    /// # Errors
+    /// * `Unauthorized` - If the caller is not the admin
+    /// * `GroupNotFound` - If the group doesn't exist
+    /// * `GroupCancelled` - If the group is already cancelled
+    pub fn emergency_refund(env: Env, admin: Address, group_id: u64) -> Result<(), AjoError> {
+        admin.require_auth();
+
+        // Verify admin
+        let stored_admin = storage::get_admin(&env).ok_or(AjoError::Unauthorized)?;
+        if admin != stored_admin {
+            return Err(AjoError::Unauthorized);
+        }
+
+        let mut group = storage::get_group(&env, group_id).ok_or(AjoError::GroupNotFound)?;
+
+        // Check if already cancelled
+        if group.state == crate::types::GroupState::Cancelled {
+            return Err(AjoError::GroupCancelled);
+        }
+
+        let now = utils::get_current_timestamp(&env);
+        let mut total_refunded = 0i128;
+
+        // Process refunds for all members who contributed
+        for member in group.members.iter() {
+            if storage::has_contributed(&env, group_id, group.current_cycle, &member) {
+                let refund_amount = group.contribution_amount;
+                total_refunded += refund_amount;
+
+                // Store refund record
+                let refund_record = crate::types::RefundRecord {
+                    group_id,
+                    member: member.clone(),
+                    amount: refund_amount,
+                    timestamp: now,
+                    reason: crate::types::RefundReason::EmergencyRefund,
+                };
+                storage::store_refund_record(&env, group_id, &member, &refund_record);
+
+                // Emit refund event
+                events::emit_refund_processed(&env, group_id, &member, refund_amount, 2);
+            }
+        }
+
+        // Update group state
+        group.state = crate::types::GroupState::Cancelled;
+        storage::store_group(&env, group_id, &group);
+
+        // Emit emergency refund event
+        events::emit_emergency_refund(&env, group_id, &admin, total_refunded);
+
+        Ok(())
+    }
+
+    /// Get refund request for a group.
+    ///
+    /// Returns the current refund request if one exists.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `group_id` - The unique group identifier
+    ///
+    /// # Returns
+    /// The refund request
+    ///
+    /// # Errors
+    /// * `NoRefundRequest` - If no refund request exists
+    pub fn get_refund_request(
+        env: Env,
+        group_id: u64,
+    ) -> Result<crate::types::RefundRequest, AjoError> {
+        storage::get_refund_request(&env, group_id).ok_or(AjoError::NoRefundRequest)
+    }
+
+    /// Get refund record for a member.
+    ///
+    /// Returns the refund record if the member has received a refund.
+    ///
+    /// # Arguments
+    /// * `env` - The Soroban contract environment
+    /// * `group_id` - The unique group identifier
+    /// * `member` - The member's address
+    ///
+    /// # Returns
+    /// The refund record
+    ///
+    /// # Errors
+    /// * `GroupNotFound` - If no refund record exists
+    pub fn get_refund_record(
+        env: Env,
+        group_id: u64,
+        member: Address,
+    ) -> Result<crate::types::RefundRecord, AjoError> {
+        storage::get_refund_record(&env, group_id, &member).ok_or(AjoError::GroupNotFound)
     }
 }
