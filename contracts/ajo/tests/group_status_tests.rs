@@ -25,7 +25,7 @@ fn test_group_status_initial_state() {
     let (_env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -49,7 +49,7 @@ fn test_group_status_partial_contributions() {
     let (_env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -73,7 +73,7 @@ fn test_group_status_all_contributed() {
     let (_env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -94,10 +94,10 @@ fn test_group_status_all_contributed() {
 
 #[test]
 fn test_group_status_after_payout() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -105,6 +105,12 @@ fn test_group_status_after_payout() {
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period to allow payout
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
+    
     client.execute_payout(&group_id);
 
     // Get status after payout
@@ -121,10 +127,10 @@ fn test_group_status_after_payout() {
 
 #[test]
 fn test_group_status_mid_lifecycle() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -132,12 +138,24 @@ fn test_group_status_mid_lifecycle() {
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
+    
     client.execute_payout(&group_id);
 
     // Complete second cycle
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period again
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
+    
     client.execute_payout(&group_id);
 
     // Start third cycle with partial contributions
@@ -157,10 +175,10 @@ fn test_group_status_mid_lifecycle() {
 
 #[test]
 fn test_group_status_completed() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -169,6 +187,12 @@ fn test_group_status_completed() {
         client.contribute(&creator, &group_id);
         client.contribute(&member2, &group_id);
         client.contribute(&member3, &group_id);
+        
+        // Advance time past grace period
+        env.ledger().with_mut(|li| {
+            li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+        });
+        
         client.execute_payout(&group_id);
     }
 
@@ -186,7 +210,7 @@ fn test_group_status_cycle_timing() {
     let (_env, client, creator, _, _) = setup_test_env();
 
     let cycle_duration = 604_800u64; // 1 week
-    let group_id = client.create_group(&creator, &100_000_000i128, &cycle_duration, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &cycle_duration, &3u32, &86400u64, &5u32);
 
     // Get initial status
     let status = client.get_group_status(&group_id);
@@ -206,7 +230,7 @@ fn test_group_status_cycle_expired() {
     let (env, client, creator, _, _) = setup_test_env();
 
     let cycle_duration = 604_800u64; // 1 week
-    let group_id = client.create_group(&creator, &100_000_000i128, &cycle_duration, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &cycle_duration, &3u32, &86400u64, &5u32);
 
     // Advance time past cycle end
     env.ledger()
@@ -225,7 +249,7 @@ fn test_group_status_single_member_group() {
     let (_env, client, creator, _, _) = setup_test_env();
 
     // Create group with just creator (edge case, though normally min is 2)
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &2u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &2u32, &86400u64, &5u32);
 
     // Get status
     let status = client.get_group_status(&group_id);
@@ -244,7 +268,7 @@ fn test_group_status_large_group() {
 
     // Create group with many members
     let max_members = 10u32;
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &max_members);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &max_members, &86400u64, &5u32);
 
     // Add more members
     let mut members = vec![creator.clone()];
@@ -270,10 +294,10 @@ fn test_group_status_large_group() {
 
 #[test]
 fn test_group_status_multiple_cycles_tracking() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -292,6 +316,11 @@ fn test_group_status_multiple_cycles_tracking() {
         assert_eq!(status_after.contributions_received, 3);
         assert_eq!(status_after.pending_contributors.len(), 0);
 
+        // Advance time past grace period
+        env.ledger().with_mut(|li| {
+            li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+        });
+
         // Execute payout (except on last cycle to check completion)
         client.execute_payout(&group_id);
     }
@@ -306,7 +335,7 @@ fn test_group_status_consistency_with_get_group() {
     let (_env, client, creator, member2, member3) = setup_test_env();
 
     // Create and setup group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
     client.contribute(&creator, &group_id);
@@ -369,7 +398,7 @@ fn test_group_status_no_overflow_with_many_contributions() {
     let (env, client, creator, _, _) = setup_test_env();
 
     // Create group with multiple members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32, &86400u64, &5u32);
 
     // Add several members
     let mut members = vec![creator.clone()];
@@ -395,10 +424,10 @@ fn test_group_status_no_overflow_with_many_contributions() {
 
 #[test]
 fn test_group_status_placeholder_address_when_complete() {
-    let (_env, client, creator, member2, member3) = setup_test_env();
+    let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create and complete a group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -407,6 +436,12 @@ fn test_group_status_placeholder_address_when_complete() {
         client.contribute(&creator, &group_id);
         client.contribute(&member2, &group_id);
         client.contribute(&member3, &group_id);
+        
+        // Advance time past grace period
+        env.ledger().with_mut(|li| {
+            li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+        });
+        
         client.execute_payout(&group_id);
     }
 
@@ -425,7 +460,7 @@ fn test_group_status_atomic_consistency() {
     let (_env, client, creator, member2, member3) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 

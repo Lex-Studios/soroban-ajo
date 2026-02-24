@@ -73,4 +73,16 @@ pub enum AjoError {
     
     /// Only the admin can unpause the contract.
     UnauthorizedUnpause = 23,
+
+    /// Contribution is too late - grace period has expired.
+    GracePeriodExpired = 24,
+
+    /// Invalid grace period duration.
+    InvalidGracePeriod = 25,
+
+    /// Invalid penalty rate (must be 0-100).
+    InvalidPenaltyRate = 26,
+
+    /// Metadata field exceeds maximum length.
+    MetadataTooLong = 27,
 }

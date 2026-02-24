@@ -67,3 +67,30 @@ pub fn emit_group_cancelled(
     env.events()
         .publish(topics, (creator, member_count, refund_per_member));
 }
+
+/// Emit an event when a late contribution is made with penalty
+pub fn emit_late_contribution(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+    cycle: u32,
+    amount: i128,
+    penalty: i128,
+) {
+    let topics = (symbol_short!("late"), group_id, cycle);
+    env.events().publish(topics, (member, amount, penalty));
+}
+
+/// Emit an event when penalties are distributed with payout
+pub fn emit_penalty_distributed(
+    env: &Env,
+    group_id: u64,
+    recipient: &Address,
+    cycle: u32,
+    base_amount: i128,
+    penalty_bonus: i128,
+) {
+    let topics = (symbol_short!("pendistr"), group_id, cycle);
+    env.events()
+        .publish(topics, (recipient, base_amount, penalty_bonus));
+}

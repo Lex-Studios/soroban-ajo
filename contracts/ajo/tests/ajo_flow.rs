@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use soroban_ajo::{AjoContract, AjoContractClient};
-use soroban_sdk::{testutils::Address as _, Address, Env};
+use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
 /// Helper function to create a test environment and contract
 fn setup_test_env() -> (Env, AjoContractClient<'static>, Address, Address, Address) {
@@ -26,8 +26,10 @@ fn test_create_group() {
     let contribution = 100_000_000i128; // 10 XLM
     let cycle_duration = 604_800u64; // 1 week in seconds
     let max_members = 10u32;
+    let grace_period = 86400u64; // 24 hours
+    let penalty_rate = 5u32; // 5%
 
-    let group_id = client.create_group(&creator, &contribution, &cycle_duration, &max_members);
+    let group_id = client.create_group(&creator, &contribution, &cycle_duration, &max_members, &grace_period, &penalty_rate);
 
     assert_eq!(group_id, 1);
 
@@ -42,6 +44,8 @@ fn test_create_group() {
     assert_eq!(group.current_cycle, 1);
     assert_eq!(group.payout_index, 0);
     assert_eq!(group.is_complete, false);
+    assert_eq!(group.grace_period, grace_period);
+    assert_eq!(group.penalty_rate, penalty_rate);
 }
 
 #[test]
@@ -49,7 +53,7 @@ fn test_join_group() {
     let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32, &86400u64, &5u32);
 
     // Member 2 joins
     client.join_group(&member2, &group_id);
@@ -73,7 +77,7 @@ fn test_join_group_already_member() {
     let (env, client, creator, _, _) = setup_test_env();
 
     // Create group (creator is automatically a member)
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32, &86400u64, &5u32);
 
     // Try to join again - should panic
     client.join_group(&creator, &group_id);
@@ -85,7 +89,7 @@ fn test_join_group_full() {
     let (env, client, creator, member2, _) = setup_test_env();
 
     // Create group with max 2 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &2u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &2u32, &86400u64, &5u32);
 
     // Member 2 joins (now at max)
     client.join_group(&member2, &group_id);
@@ -100,7 +104,7 @@ fn test_contribution_flow() {
     let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members max
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -124,7 +128,7 @@ fn test_contribution_flow() {
 fn test_double_contribution() {
     let (env, client, creator, _, _) = setup_test_env();
 
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
 
     // Contribute once
     client.contribute(&creator, &group_id);
@@ -139,7 +143,7 @@ fn test_payout_incomplete_contributions() {
     let (env, client, creator, member2, _) = setup_test_env();
 
     // Create group with 2 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
 
     // Only creator contributes
@@ -154,7 +158,7 @@ fn test_payout_execution() {
     let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -162,6 +166,12 @@ fn test_payout_execution() {
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period to allow payout
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1; // Past cycle + grace period
+    });
+    
     client.execute_payout(&group_id);
 
     // Verify state after first payout
@@ -176,7 +186,7 @@ fn test_full_lifecycle() {
     let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create group with 3 members
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -187,6 +197,12 @@ fn test_full_lifecycle() {
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1; // cycle + grace + 1
+    });
+    
     client.execute_payout(&group_id);
     assert_eq!(client.is_complete(&group_id), false);
 
@@ -194,6 +210,12 @@ fn test_full_lifecycle() {
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
+    
     client.execute_payout(&group_id);
     assert_eq!(client.is_complete(&group_id), false);
 
@@ -201,6 +223,12 @@ fn test_full_lifecycle() {
     client.contribute(&creator, &group_id);
     client.contribute(&member2, &group_id);
     client.contribute(&member3, &group_id);
+    
+    // Advance time past grace period
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
+    
     client.execute_payout(&group_id);
 
     // Group should now be complete
@@ -217,7 +245,7 @@ fn test_contribute_after_completion() {
     let (env, client, creator, member2, member3) = setup_test_env();
 
     // Create and complete a group
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&member2, &group_id);
     client.join_group(&member3, &group_id);
 
@@ -239,7 +267,7 @@ fn test_create_group_invalid_amount() {
     let (env, client, creator, _, _) = setup_test_env();
 
     // Try to create group with zero contribution
-    client.create_group(&creator, &0i128, &604_800u64, &10u32);
+    client.create_group(&creator, &0i128, &604_800u64, &10u32, &86400u64, &5u32);
 }
 
 #[test]
@@ -248,7 +276,7 @@ fn test_create_group_invalid_duration() {
     let (env, client, creator, _, _) = setup_test_env();
 
     // Try to create group with zero duration
-    client.create_group(&creator, &100_000_000i128, &0u64, &10u32);
+    client.create_group(&creator, &100_000_000i128, &0u64, &10u32, &86400u64, &5u32);
 }
 
 #[test]
@@ -257,7 +285,7 @@ fn test_create_group_invalid_max_members() {
     let (env, client, creator, _, _) = setup_test_env();
 
     // Try to create group with only 1 member max
-    client.create_group(&creator, &100_000_000i128, &604_800u64, &1u32);
+    client.create_group(&creator, &100_000_000i128, &604_800u64, &1u32, &86400u64, &5u32);
 }
 
 #[test]
@@ -265,7 +293,7 @@ fn test_create_group_invalid_max_members() {
 fn test_contribute_not_member() {
     let (env, client, creator, _, _) = setup_test_env();
 
-    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32);
+    let group_id = client.create_group(&creator, &100_000_000i128, &604_800u64, &10u32, &86400u64, &5u32);
 
     // Try to contribute as non-member
     let non_member = Address::generate(&env);
@@ -277,10 +305,10 @@ fn test_multiple_groups() {
     let (env, client, creator, member2, _) = setup_test_env();
 
     // Create first group
-    let group_id1 = client.create_group(&creator, &100_000_000i128, &604_800u64, &5u32);
+    let group_id1 = client.create_group(&creator, &100_000_000i128, &604_800u64, &5u32, &86400u64, &5u32);
 
     // Create second group
-    let group_id2 = client.create_group(&member2, &200_000_000i128, &1_209_600u64, &3u32);
+    let group_id2 = client.create_group(&member2, &200_000_000i128, &1_209_600u64, &3u32, &86400u64, &5u32);
 
     // Verify both groups exist independently
     assert_eq!(group_id1, 1);

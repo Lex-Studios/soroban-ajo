@@ -32,6 +32,18 @@ pub enum StorageKey {
     /// Optional metadata for a group.
     /// Stored in persistent storage under `("METADATA", group_id)`.
     GroupMetadata(u64),
+
+    /// Contribution record with penalty information.
+    /// Stored in persistent storage under `("CONTREC", group_id, cycle, member)`.
+    ContributionDetail(u64, u32, Address),
+
+    /// Member penalty statistics for a group.
+    /// Stored in persistent storage under `("PENALTY", group_id, member)`.
+    MemberPenalty(u64, Address),
+
+    /// Penalty pool for current cycle.
+    /// Stored in persistent storage under `("PENPOOL", group_id, cycle)`.
+    CyclePenaltyPool(u64, u32),
 }
 
 impl StorageKey {
@@ -54,6 +66,9 @@ impl StorageKey {
             StorageKey::Contribution(_, _, _) => symbol_short!("CONTRIB"),
             StorageKey::PayoutReceived(_, _) => symbol_short!("PAYOUT"),
             StorageKey::GroupMetadata(_) => symbol_short!("METADATA"),
+            StorageKey::ContributionDetail(_, _, _) => symbol_short!("CONTREC"),
+            StorageKey::MemberPenalty(_, _) => symbol_short!("PENALTY"),
+            StorageKey::CyclePenaltyPool(_, _) => symbol_short!("PENPOOL"),
         }
     }
 }
@@ -278,4 +293,116 @@ pub fn get_group_metadata(env: &Env, group_id: u64) -> Option<crate::types::Grou
 pub fn has_group_metadata(env: &Env, group_id: u64) -> bool {
     let key = (symbol_short!("METADATA"), group_id);
     env.storage().persistent().has(&key)
+}
+
+/// Stores detailed contribution record with penalty information.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group the contribution belongs to
+/// * `cycle` - The cycle number
+/// * `member` - The contributing member's address
+/// * `record` - The contribution record with penalty details
+pub fn store_contribution_detail(
+    env: &Env,
+    group_id: u64,
+    cycle: u32,
+    member: &Address,
+    record: &crate::types::ContributionRecord,
+) {
+    let key = (symbol_short!("CONTREC"), group_id, cycle, member);
+    env.storage().persistent().set(&key, record);
+}
+
+/// Retrieves detailed contribution record.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group to check
+/// * `cycle` - The cycle number
+/// * `member` - The member address
+///
+/// # Returns
+/// `Some(ContributionRecord)` if exists, `None` otherwise
+pub fn get_contribution_detail(
+    env: &Env,
+    group_id: u64,
+    cycle: u32,
+    member: &Address,
+) -> Option<crate::types::ContributionRecord> {
+    let key = (symbol_short!("CONTREC"), group_id, cycle, member);
+    env.storage().persistent().get(&key)
+}
+
+/// Stores or updates member penalty statistics.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group the member belongs to
+/// * `member` - The member's address
+/// * `record` - The penalty record
+pub fn store_member_penalty(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+    record: &crate::types::MemberPenaltyRecord,
+) {
+    let key = (symbol_short!("PENALTY"), group_id, member);
+    env.storage().persistent().set(&key, record);
+}
+
+/// Retrieves member penalty statistics.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group to check
+/// * `member` - The member address
+///
+/// # Returns
+/// `Some(MemberPenaltyRecord)` if exists, `None` otherwise
+pub fn get_member_penalty(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+) -> Option<crate::types::MemberPenaltyRecord> {
+    let key = (symbol_short!("PENALTY"), group_id, member);
+    env.storage().persistent().get(&key)
+}
+
+/// Stores the penalty pool for a cycle.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `cycle` - The cycle number
+/// * `amount` - Total penalties collected in this cycle
+pub fn store_cycle_penalty_pool(env: &Env, group_id: u64, cycle: u32, amount: i128) {
+    let key = (symbol_short!("PENPOOL"), group_id, cycle);
+    env.storage().persistent().set(&key, &amount);
+}
+
+/// Retrieves the penalty pool for a cycle.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `cycle` - The cycle number
+///
+/// # Returns
+/// Total penalties collected, defaults to 0 if not set
+pub fn get_cycle_penalty_pool(env: &Env, group_id: u64, cycle: u32) -> i128 {
+    let key = (symbol_short!("PENPOOL"), group_id, cycle);
+    env.storage().persistent().get(&key).unwrap_or(0)
+}
+
+/// Adds a penalty amount to the cycle's penalty pool.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `cycle` - The cycle number
+/// * `penalty` - Penalty amount to add
+pub fn add_to_penalty_pool(env: &Env, group_id: u64, cycle: u32, penalty: i128) {
+    let current = get_cycle_penalty_pool(env, group_id, cycle);
+    store_cycle_penalty_pool(env, group_id, cycle, current + penalty);
 }

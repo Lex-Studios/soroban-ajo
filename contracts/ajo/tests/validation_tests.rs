@@ -19,9 +19,12 @@ fn test_invalid_contribution_amount_zero() {
     let (_env, client, creator) = setup_test();
 
     let result = client.try_create_group(
-        &creator, &0,     // Invalid: zero contribution
+        &creator,
+        &0,     // Invalid: zero contribution
         &86400, // 1 day
         &5,
+        &86400u64,
+        &5u32,
     );
 
     assert_eq!(result, Err(Ok(AjoError::ContributionAmountZero)));
@@ -32,8 +35,12 @@ fn test_invalid_contribution_amount_negative() {
     let (_env, client, creator) = setup_test();
 
     let result = client.try_create_group(
-        &creator, &-100, // Invalid: negative contribution
-        &86400, &5,
+        &creator,
+        &-100, // Invalid: negative contribution
+        &86400,
+        &5,
+        &86400u64,
+        &5u32,
     );
 
     assert_eq!(result, Err(Ok(AjoError::ContributionAmountNegative)));
@@ -44,8 +51,12 @@ fn test_invalid_cycle_duration_zero() {
     let (_env, client, creator) = setup_test();
 
     let result = client.try_create_group(
-        &creator, &1000, &0, // Invalid: zero duration
+        &creator,
+        &1000,
+        &0, // Invalid: zero duration
         &5,
+        &86400u64,
+        &5u32,
     );
 
     assert_eq!(result, Err(Ok(AjoError::CycleDurationZero)));
@@ -56,7 +67,12 @@ fn test_max_members_below_minimum() {
     let (_env, client, creator) = setup_test();
 
     let result = client.try_create_group(
-        &creator, &1000, &86400, &1, // Invalid: only 1 member (need at least 2)
+        &creator,
+        &1000,
+        &86400,
+        &1, // Invalid: only 1 member (need at least 2)
+        &86400u64,
+        &5u32,
     );
 
     assert_eq!(result, Err(Ok(AjoError::MaxMembersBelowMinimum)));
@@ -67,7 +83,12 @@ fn test_max_members_above_limit() {
     let (_env, client, creator) = setup_test();
 
     let result = client.try_create_group(
-        &creator, &1000, &86400, &101, // Invalid: exceeds limit of 100
+        &creator,
+        &1000,
+        &86400,
+        &101, // Invalid: exceeds limit of 100
+        &86400u64,
+        &5u32,
     );
 
     assert_eq!(result, Err(Ok(AjoError::MaxMembersAboveLimit)));
@@ -78,7 +99,7 @@ fn test_max_members_exceeded_on_join() {
     let (_env, client, creator) = setup_test();
 
     // Create group with max 2 members
-    let group_id = client.create_group(&creator, &1000, &86400, &2);
+    let group_id = client.create_group(&creator, &1000, &86400, &2, &86400u64, &5u32);
 
     // Second member joins successfully
     let member2 = Address::generate(&_env);
@@ -97,9 +118,12 @@ fn test_valid_group_creation() {
 
     // All valid parameters
     let result = client.try_create_group(
-        &creator, &1000,  // Valid: positive amount
+        &creator,
+        &1000,  // Valid: positive amount
         &86400, // Valid: positive duration
         &5,     // Valid: between 2 and 100
+        &86400u64,
+        &5u32,
     );
 
     assert!(result.is_ok());

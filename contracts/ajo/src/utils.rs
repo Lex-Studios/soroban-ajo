@@ -165,3 +165,145 @@ pub fn is_within_cycle_window(group: &Group, current_time: u64) -> bool {
     let (cycle_start, cycle_end) = get_cycle_window(group, current_time);
     current_time >= cycle_start && current_time < cycle_end
 }
+
+/// Returns `true` if `current_time` is within the grace period after cycle ends.
+///
+/// Grace period starts when the cycle ends and lasts for `group.grace_period` seconds.
+/// During this time, members can still contribute but will incur penalties.
+///
+/// # Arguments
+/// * `group` - The group whose grace period is being checked
+/// * `current_time` - The timestamp to evaluate
+///
+/// # Returns
+/// `true` if current_time is within the grace period, `false` otherwise
+pub fn is_within_grace_period(group: &Group, current_time: u64) -> bool {
+    let cycle_end = group.cycle_start_time + group.cycle_duration;
+    let grace_end = cycle_end + group.grace_period;
+    current_time >= cycle_end && current_time < grace_end
+}
+
+/// Returns the grace period end timestamp for the current cycle.
+///
+/// # Arguments
+/// * `group` - The group whose grace period end is being calculated
+///
+/// # Returns
+/// Unix timestamp when grace period ends
+pub fn get_grace_period_end(group: &Group) -> u64 {
+    group.cycle_start_time + group.cycle_duration + group.grace_period
+}
+
+/// Calculates the penalty amount for a late contribution.
+///
+/// Penalty = contribution_amount × (penalty_rate / 100)
+/// For example, if contribution is 100 XLM and penalty_rate is 5,
+/// the penalty is 5 XLM.
+///
+/// # Arguments
+/// * `contribution_amount` - The base contribution amount
+/// * `penalty_rate` - Penalty rate as percentage (0-100)
+///
+/// # Returns
+/// Penalty amount in stroops
+pub fn calculate_penalty(contribution_amount: i128, penalty_rate: u32) -> i128 {
+    (contribution_amount * penalty_rate as i128) / 100
+}
+
+/// Checks if a contribution is late and calculates penalty if applicable.
+///
+/// Returns a tuple of (is_late, penalty_amount).
+/// - If within cycle window: (false, 0)
+/// - If within grace period: (true, calculated_penalty)
+/// - If after grace period: returns error via caller
+///
+/// # Arguments
+/// * `group` - The group being contributed to
+/// * `current_time` - The timestamp of the contribution
+///
+/// # Returns
+/// `(is_late, penalty_amount)` tuple
+pub fn check_contribution_timing(group: &Group, current_time: u64) -> (bool, i128) {
+    if is_within_cycle_window(group, current_time) {
+        // On time - no penalty
+        (false, 0)
+    } else if is_within_grace_period(group, current_time) {
+        // Late but within grace period - apply penalty
+        let penalty = calculate_penalty(group.contribution_amount, group.penalty_rate);
+        (true, penalty)
+    } else {
+        // Too late - caller should return error
+        (true, 0)
+    }
+}
+
+/// Validates grace period and penalty rate parameters.
+///
+/// # Arguments
+/// * `grace_period` - Grace period duration in seconds
+/// * `penalty_rate` - Penalty rate as percentage (0-100)
+///
+/// # Returns
+/// `Ok(())` if valid
+///
+/// # Errors
+/// * `InvalidGracePeriod` - if grace_period is unreasonably long (> 7 days)
+/// * `InvalidPenaltyRate` - if penalty_rate > 100
+pub fn validate_penalty_params(
+    grace_period: u64,
+    penalty_rate: u32,
+) -> Result<(), crate::errors::AjoError> {
+    const MAX_GRACE_PERIOD: u64 = 7 * 24 * 60 * 60; // 7 days
+
+    if grace_period > MAX_GRACE_PERIOD {
+        return Err(crate::errors::AjoError::InvalidGracePeriod);
+    }
+
+    if penalty_rate > 100 {
+        return Err(crate::errors::AjoError::InvalidPenaltyRate);
+    }
+
+    Ok(())
+}
+
+/// Updates or creates a member's penalty record after a contribution.
+///
+/// # Arguments
+/// * `env` - The contract environment
+/// * `group_id` - The group
+/// * `member` - The member's address
+/// * `is_late` - Whether the contribution was late
+/// * `penalty_amount` - Penalty charged (0 if on time)
+pub fn update_member_penalty_record(
+    env: &Env,
+    group_id: u64,
+    member: &Address,
+    is_late: bool,
+    penalty_amount: i128,
+) {
+    let mut record = crate::storage::get_member_penalty(env, group_id, member).unwrap_or(
+        crate::types::MemberPenaltyRecord {
+            member: member.clone(),
+            group_id,
+            late_count: 0,
+            on_time_count: 0,
+            total_penalties: 0,
+            reliability_score: 100,
+        },
+    );
+
+    if is_late {
+        record.late_count += 1;
+        record.total_penalties += penalty_amount;
+    } else {
+        record.on_time_count += 1;
+    }
+
+    // Calculate reliability score: (on_time / total) * 100
+    let total_contributions = record.on_time_count + record.late_count;
+    if total_contributions > 0 {
+        record.reliability_score = (record.on_time_count * 100) / total_contributions;
+    }
+
+    crate::storage::store_member_penalty(env, group_id, member, &record);
+}

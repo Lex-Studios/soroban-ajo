@@ -48,6 +48,16 @@ pub struct Group {
     /// Whether the group has completed all payout cycles.
     /// Once `true`, no further contributions or payouts are accepted.
     pub is_complete: bool,
+
+    /// Grace period duration in seconds after cycle ends.
+    /// Members can still contribute during this period but will incur penalties.
+    /// Default: 86400 seconds (24 hours)
+    pub grace_period: u64,
+
+    /// Penalty rate as a percentage (0-100) applied to late contributions.
+    /// For example, 5 means 5% penalty on the contribution amount.
+    /// Penalties are added to the group pool for the next recipient.
+    pub penalty_rate: u32,
 }
 
 /// Records a single member's contribution for a specific cycle.
@@ -73,6 +83,36 @@ pub struct ContributionRecord {
 
     /// Unix timestamp (seconds) when the contribution was recorded.
     pub timestamp: u64,
+
+    /// Whether this contribution was made late (during grace period).
+    pub is_late: bool,
+
+    /// Penalty amount charged for late contribution (in stroops).
+    /// Zero if contribution was on time.
+    pub penalty_amount: i128,
+}
+
+/// Tracks penalty statistics for a member across all cycles in a group.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MemberPenaltyRecord {
+    /// Address of the member.
+    pub member: Address,
+
+    /// The group this record belongs to.
+    pub group_id: u64,
+
+    /// Total number of late contributions.
+    pub late_count: u32,
+
+    /// Total number of on-time contributions.
+    pub on_time_count: u32,
+
+    /// Total penalty amount paid (in stroops).
+    pub total_penalties: i128,
+
+    /// Reliability score (0-100): percentage of on-time contributions.
+    pub reliability_score: u32,
 }
 
 /// Records that a member has received their payout for a given cycle.
@@ -143,6 +183,15 @@ pub struct GroupStatus {
 
     /// The ledger timestamp at the moment this status was queried.
     pub current_time: u64,
+
+    /// Total penalties collected in the current cycle (in stroops).
+    pub cycle_penalty_pool: i128,
+
+    /// Whether the cycle is in grace period (after cycle end but before grace period expires).
+    pub is_in_grace_period: bool,
+
+    /// Unix timestamp when grace period ends.
+    pub grace_period_end_time: u64,
 }
 
 /// Optional metadata for a group.

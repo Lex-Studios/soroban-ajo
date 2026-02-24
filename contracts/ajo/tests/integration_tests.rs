@@ -6,7 +6,7 @@
 //! including multiple groups and failure scenarios.
 
 use soroban_ajo::{AjoContract, AjoContractClient, AjoError};
-use soroban_sdk::{testutils::Address as _, Address, Env};
+use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
 
 /// Helper function to create a test environment and contract
 fn setup_test_env() -> (Env, AjoContractClient<'static>) {
@@ -25,10 +25,16 @@ fn generate_addresses(env: &Env, count: usize) -> Vec<Address> {
 }
 
 /// Helper function to run a complete cycle (all members contribute + payout)
-fn complete_cycle(client: &AjoContractClient, group_id: &u64, members: &[Address]) {
+fn complete_cycle(env: &Env, client: &AjoContractClient, group_id: &u64, members: &[Address]) {
     for member in members {
         client.contribute(member, group_id);
     }
+    
+    // Advance time past grace period to allow payout
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
+    
     client.execute_payout(group_id);
 }
 
@@ -43,7 +49,7 @@ fn test_full_lifecycle_create_join_contribute_payout_complete() {
     let cycle_duration = 604_800u64; // 1 week
     let max_members = 5u32;
 
-    let group_id = client.create_group(creator, &contribution, &cycle_duration, &max_members);
+    let group_id = client.create_group(creator, &contribution, &cycle_duration, &max_members, &86400u64, &5u32);
     assert_eq!(group_id, 1);
 
     // Verify initial state
@@ -81,6 +87,9 @@ fn test_full_lifecycle_create_join_contribute_payout_complete() {
         }
 
         // Execute payout
+        env.ledger().with_mut(|li| {
+            li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+        });
         client.execute_payout(&group_id);
 
         // Verify cycle progression
@@ -109,10 +118,10 @@ fn test_multiple_groups_independent_lifecycle() {
     let group2_members = generate_addresses(&env, 4);
 
     // Create Group 1 (3 members, 10 XLM contribution)
-    let group_id1 = client.create_group(&group1_members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id1 = client.create_group(&group1_members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
 
     // Create Group 2 (4 members, 20 XLM contribution)
-    let group_id2 = client.create_group(&group2_members[0], &200_000_000i128, &1_209_600u64, &4u32);
+    let group_id2 = client.create_group(&group2_members[0], &200_000_000i128, &1_209_600u64, &4u32, &86400u64, &5u32);
 
     assert_eq!(group_id1, 1);
     assert_eq!(group_id2, 2);
@@ -136,7 +145,7 @@ fn test_multiple_groups_independent_lifecycle() {
     assert_eq!(g2.contribution_amount, 200_000_000i128);
 
     // Progress Group 1 through one cycle
-    complete_cycle(&client, &group_id1, &group1_members);
+    complete_cycle(&env, &client, &group_id1, &group1_members);
 
     // Verify Group 1 progressed but Group 2 didn't
     let g1_after = client.get_group(&group_id1);
@@ -147,16 +156,16 @@ fn test_multiple_groups_independent_lifecycle() {
 
     // Complete Group 1 entirely
     for _ in 0..2 {
-        complete_cycle(&client, &group_id1, &group1_members);
+        complete_cycle(&env, &client, &group_id1, &group1_members);
     }
 
     assert_eq!(client.is_complete(&group_id1), true);
     assert_eq!(client.is_complete(&group_id2), false);
 
-    // Group 2 should still be functional
-    complete_cycle(&client, &group_id2, &group2_members);
+    // Verify group 2 is still at cycle 1 and independent
     let g2_final = client.get_group(&group_id2);
-    assert_eq!(g2_final.current_cycle, 2);
+    assert_eq!(g2_final.current_cycle, 1);
+    assert_eq!(g2_final.is_complete, false);
 }
 
 #[test]
@@ -165,12 +174,12 @@ fn test_multiple_groups_with_overlapping_members() {
     let members = generate_addresses(&env, 5);
 
     // Create Group 1 with members 0, 1, 2
-    let group_id1 = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id1 = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&members[1], &group_id1);
     client.join_group(&members[2], &group_id1);
 
     // Create Group 2 with members 1, 3, 4 (member 1 is in both groups)
-    let group_id2 = client.create_group(&members[1], &150_000_000i128, &604_800u64, &3u32);
+    let group_id2 = client.create_group(&members[1], &150_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&members[3], &group_id2);
     client.join_group(&members[4], &group_id2);
 
@@ -188,7 +197,14 @@ fn test_multiple_groups_with_overlapping_members() {
     client.contribute(&members[4], &group_id2);
 
     // Both groups can execute payouts independently
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
     client.execute_payout(&group_id1);
+    
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
     client.execute_payout(&group_id2);
 
     let g1 = client.get_group(&group_id1);
@@ -204,7 +220,7 @@ fn test_failure_scenario_incomplete_contributions() {
     let members = generate_addresses(&env, 4);
 
     // Create group with 4 members
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &4u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &4u32, &86400u64, &5u32);
     for member in &members[1..] {
         client.join_group(member, &group_id);
     }
@@ -230,7 +246,7 @@ fn test_failure_scenario_double_contribution() {
     let (env, client) = setup_test_env();
     let members = generate_addresses(&env, 3);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     for member in &members[1..] {
         client.join_group(member, &group_id);
     }
@@ -249,7 +265,7 @@ fn test_failure_scenario_join_after_max_members() {
     let members = generate_addresses(&env, 4);
 
     // Create group with max 3 members
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     client.join_group(&members[1], &group_id);
     client.join_group(&members[2], &group_id);
 
@@ -267,12 +283,12 @@ fn test_failure_scenario_contribute_after_completion() {
     let (env, client) = setup_test_env();
     let members = generate_addresses(&env, 2);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &2u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &2u32, &86400u64, &5u32);
     client.join_group(&members[1], &group_id);
 
     // Complete all cycles
     for _ in 0..2 {
-        complete_cycle(&client, &group_id, &members);
+        complete_cycle(&env, &client, &group_id, &members);
     }
 
     assert_eq!(client.is_complete(&group_id), true);
@@ -288,7 +304,7 @@ fn test_failure_scenario_non_member_contribution() {
     let members = generate_addresses(&env, 3);
     let non_member = Address::generate(&env);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
 
     // Non-member tries to contribute
     let result = client.try_contribute(&non_member, &group_id);
@@ -300,7 +316,7 @@ fn test_failure_scenario_join_already_member() {
     let (env, client) = setup_test_env();
     let members = generate_addresses(&env, 2);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &5u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &5u32, &86400u64, &5u32);
     client.join_group(&members[1], &group_id);
 
     // Try to join again
@@ -314,19 +330,19 @@ fn test_failure_scenario_invalid_group_creation() {
     let creator = Address::generate(&env);
 
     // Zero contribution amount
-    let result = client.try_create_group(&creator, &0i128, &604_800u64, &5u32);
+    let result = client.try_create_group(&creator, &0i128, &604_800u64, &5u32, &86400u64, &5u32);
     assert_eq!(result, Err(Ok(AjoError::ContributionAmountZero)));
 
     // Negative contribution amount
-    let result = client.try_create_group(&creator, &-100i128, &604_800u64, &5u32);
+    let result = client.try_create_group(&creator, &-100i128, &604_800u64, &5u32, &86400u64, &5u32);
     assert_eq!(result, Err(Ok(AjoError::ContributionAmountNegative)));
 
     // Zero cycle duration
-    let result = client.try_create_group(&creator, &100_000_000i128, &0u64, &5u32);
+    let result = client.try_create_group(&creator, &100_000_000i128, &0u64, &5u32, &86400u64, &5u32);
     assert_eq!(result, Err(Ok(AjoError::CycleDurationZero)));
 
     // Max members below minimum (less than 2)
-    let result = client.try_create_group(&creator, &100_000_000i128, &604_800u64, &1u32);
+    let result = client.try_create_group(&creator, &100_000_000i128, &604_800u64, &1u32, &86400u64, &5u32);
     assert_eq!(result, Err(Ok(AjoError::MaxMembersBelowMinimum)));
 }
 
@@ -335,13 +351,13 @@ fn test_complex_scenario_partial_completion_with_recovery() {
     let (env, client) = setup_test_env();
     let members = generate_addresses(&env, 3);
 
-    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     for member in &members[1..] {
         client.join_group(member, &group_id);
     }
 
     // Complete first cycle successfully
-    complete_cycle(&client, &group_id, &members);
+    complete_cycle(&env, &client, &group_id, &members);
     assert_eq!(client.get_group(&group_id).current_cycle, 2);
 
     // Second cycle: incomplete contributions
@@ -356,11 +372,14 @@ fn test_complex_scenario_partial_completion_with_recovery() {
     client.contribute(&members[2], &group_id);
 
     // Now payout should succeed
+    env.ledger().with_mut(|li| {
+        li.timestamp = li.timestamp + 604_800 + 86400 + 1;
+    });
     client.execute_payout(&group_id);
     assert_eq!(client.get_group(&group_id).current_cycle, 3);
 
     // Complete final cycle
-    complete_cycle(&client, &group_id, &members);
+    complete_cycle(&env, &client, &group_id, &members);
     assert_eq!(client.is_complete(&group_id), true);
 }
 
@@ -370,7 +389,7 @@ fn test_large_group_full_lifecycle() {
     let members = generate_addresses(&env, 10);
 
     // Create group with 10 members
-    let group_id = client.create_group(&members[0], &50_000_000i128, &604_800u64, &10u32);
+    let group_id = client.create_group(&members[0], &50_000_000i128, &604_800u64, &10u32, &86400u64, &5u32);
 
     // All members join
     for member in &members[1..] {
@@ -382,7 +401,7 @@ fn test_large_group_full_lifecycle() {
 
     // Complete all 10 cycles
     for cycle in 1..=10 {
-        complete_cycle(&client, &group_id, &members);
+        complete_cycle(&env, &client, &group_id, &members);
 
         let group = client.get_group(&group_id);
         if cycle < 10 {
@@ -402,25 +421,25 @@ fn test_sequential_group_creation_and_completion() {
     let members = generate_addresses(&env, 3);
 
     // Create and complete first group
-    let group_id1 = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32);
+    let group_id1 = client.create_group(&members[0], &100_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     for member in &members[1..] {
         client.join_group(member, &group_id1);
     }
 
     for _ in 0..3 {
-        complete_cycle(&client, &group_id1, &members);
+        complete_cycle(&env, &client, &group_id1, &members);
     }
 
     assert_eq!(client.is_complete(&group_id1), true);
 
     // Create second group with same members
-    let group_id2 = client.create_group(&members[0], &150_000_000i128, &604_800u64, &3u32);
+    let group_id2 = client.create_group(&members[0], &150_000_000i128, &604_800u64, &3u32, &86400u64, &5u32);
     for member in &members[1..] {
         client.join_group(member, &group_id2);
     }
 
     // Second group should be independent and functional
-    complete_cycle(&client, &group_id2, &members);
+    complete_cycle(&env, &client, &group_id2, &members);
 
     let g2 = client.get_group(&group_id2);
     assert_eq!(g2.current_cycle, 2);

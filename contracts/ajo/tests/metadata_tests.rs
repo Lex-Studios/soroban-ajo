@@ -18,7 +18,7 @@ fn setup_test() -> (Env, AjoContractClient<'static>, Address) {
 fn test_set_and_get_metadata() {
     let (env, client, creator) = setup_test();
 
-    let group_id = client.create_group(&creator, &1000, &86400, &5);
+    let group_id = client.create_group(&creator, &1000, &86400, &5, &86400u64, &5u32);
 
     let name = String::from_str(&env, "Test Group");
     let description = String::from_str(&env, "A test group for esusu");
@@ -37,7 +37,7 @@ fn test_set_and_get_metadata() {
 fn test_update_metadata() {
     let (env, client, creator) = setup_test();
 
-    let group_id = client.create_group(&creator, &1000, &86400, &5);
+    let group_id = client.create_group(&creator, &1000, &86400, &5, &86400u64, &5u32);
 
     let name1 = String::from_str(&env, "Name 1");
     let desc1 = String::from_str(&env, "Desc 1");
@@ -60,7 +60,7 @@ fn test_update_metadata() {
 #[test]
 fn test_metadata_not_found() {
     let (_env, client, creator) = setup_test();
-    let group_id = client.create_group(&creator, &1000, &86400, &5);
+    let group_id = client.create_group(&creator, &1000, &86400, &5, &86400u64, &5u32);
 
     let result = client.try_get_group_metadata(&group_id);
     assert_eq!(result, Err(Ok(AjoError::GroupNotFound)));
@@ -69,7 +69,7 @@ fn test_metadata_not_found() {
 #[test]
 fn test_set_metadata_unauthorized() {
     let (env, client, creator) = setup_test();
-    let group_id = client.create_group(&creator, &1000, &86400, &5);
+    let group_id = client.create_group(&creator, &1000, &86400, &5, &86400u64, &5u32);
 
     let other = Address::generate(&env);
     // env.mock_all_auths() is on, but we can still check if it requires auth
@@ -92,7 +92,7 @@ fn test_set_metadata_unauthorized() {
 #[test]
 fn test_metadata_too_long() {
     let (env, client, creator) = setup_test();
-    let group_id = client.create_group(&creator, &1000, &86400, &5);
+    let group_id = client.create_group(&creator, &1000, &86400, &5, &86400u64, &5u32);
 
     // Max name is 50
     let mut long_name_str = [0u8; 51];
