@@ -1,26 +1,22 @@
 // Issue #27: Create group detail page with tabs
 // Complexity: Medium (150 pts)
-// Status: Placeholder
+// Status: Enhanced with real member data integration
 
 import React, { useState } from 'react'
 import { ContributionForm } from './ContributionForm'
-import { EmptyMemberState } from './EmptyMemberState'
 import { MemberList } from './MemberList'
 import { TransactionHistory } from './TransactionHistory'
-import { Member } from '../types'
 
 type TabKey = 'overview' | 'members' | 'history' | 'settings'
 
 interface GroupDetailPageProps {
   groupId: string
-  members?: Member[]
   onShareLink?: () => void
   onCopyLink?: () => void
 }
 
 export const GroupDetailPage: React.FC<GroupDetailPageProps> = ({
   groupId,
-  members = [],
   onShareLink,
   onCopyLink,
 }) => {
@@ -115,11 +111,8 @@ export const GroupDetailPage: React.FC<GroupDetailPageProps> = ({
 
           {activeTab === 'members' && (
             <>
-              {members.length === 0 ? (
-                <EmptyMemberState onShareLink={handleShareLink} onCopyLink={handleCopyLink} />
-              ) : (
-                <MemberList groupId={groupId} members={members} />
-              )}
+              {/* MemberList now fetches its own data via useGroupMembers hook */}
+              <MemberList groupId={groupId} />
             </>
           )}
 

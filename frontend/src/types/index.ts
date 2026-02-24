@@ -23,6 +23,8 @@ export interface Member {
   groupId: string
   joinedDate: string
   contributions: number
+  totalContributed: number
+  cyclesCompleted: number
   status: 'active' | 'inactive' | 'completed'
 }
 

@@ -579,8 +579,157 @@ export const initializeSoroban = (): SorobanService => {
             async () => {
               return await withRetry(
                 async () => {
+                  if (isTestEnvironment || !CONTRACT_ID) {
+                    // Mock data for development
+                    await new Promise(resolve => setTimeout(resolve, 300))
+                    return [
+                      {
+                        address: 'GABC123DEFGHIJKLMNOPQRSTUVWXYZ456789ABCDEFGHIJKLMNOP',
+                        groupId,
+                        joinedDate: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+                        contributions: 3,
+                        totalContributed: 150,
+                        cyclesCompleted: 3,
+                        status: 'active' as const,
+                      },
+                      {
+                        address: 'GDEF456GHIJKLMNOPQRSTUVWXYZ789012ABCDEFGHIJKLMNOPQR',
+                        groupId,
+                        joinedDate: new Date(Date.now() - 55 * 24 * 60 * 60 * 1000).toISOString(),
+                        contributions: 3,
+                        totalContributed: 150,
+                        cyclesCompleted: 3,
+                        status: 'active' as const,
+                      },
+                      {
+                        address: 'GHIJ789KLMNOPQRSTUVWXYZ012345ABCDEFGHIJKLMNOPQRSTUV',
+                        groupId,
+                        joinedDate: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000).toISOString(),
+                        contributions: 2,
+                        totalContributed: 100,
+                        cyclesCompleted: 2,
+                        status: 'active' as const,
+                      },
+                    ]
+                  }
 
-                  return []
+                  // Real contract call
+                  if (!(await isConnected())) {
+                    throw new Error('Freighter wallet is not installed.')
+                  }
+                  if (!(await isAllowed())) {
+                    await setAllowed()
+                  }
+
+                  const accessResult = await requestAccess()
+                  if (accessResult.error || !accessResult.address) {
+                    const error: any = new Error(accessResult.error || 'User public key not available.')
+                    error.code = 'UNAUTHORIZED'
+                    throw error
+                  }
+
+                  const sourceAccount = await server.getAccount(accessResult.address)
+                  const contract = new SorobanClient.Contract(CONTRACT_ID)
+
+                  // First, get the group to know current cycle
+                  const groupTx = new SorobanClient.TransactionBuilder(sourceAccount, {
+                    fee: '100',
+                    networkPassphrase: NETWORK_PASSPHRASE,
+                  })
+                    .addOperation(
+                      contract.call(
+                        'get_group',
+                        SorobanClient.xdr.ScVal.scvU64(new SorobanClient.xdr.Uint64(parseInt(groupId)))
+                      )
+                    )
+                    .setTimeout(30)
+                    .build()
+
+                  const groupSim = await server.simulateTransaction(groupTx)
+                  if (!SorobanClient.SorobanRpc.Api.isSimulationSuccess(groupSim)) {
+                    throw new Error('Failed to fetch group data')
+                  }
+
+                  const groupData = SorobanClient.scValToNative(groupSim.result!.retval)
+                  const currentCycle = Number(groupData.current_cycle)
+                  const createdAt = Number(groupData.created_at)
+
+                  // Call list_members to get member addresses
+                  const membersTx = new SorobanClient.TransactionBuilder(sourceAccount, {
+                    fee: '100',
+                    networkPassphrase: NETWORK_PASSPHRASE,
+                  })
+                    .addOperation(
+                      contract.call(
+                        'list_members',
+                        SorobanClient.xdr.ScVal.scvU64(new SorobanClient.xdr.Uint64(parseInt(groupId)))
+                      )
+                    )
+                    .setTimeout(30)
+                    .build()
+
+                  const membersSim = await server.simulateTransaction(membersTx)
+                  if (!SorobanClient.SorobanRpc.Api.isSimulationSuccess(membersSim)) {
+                    throw new Error('Failed to fetch members')
+                  }
+
+                  const memberAddresses = SorobanClient.scValToNative(membersSim.result!.retval) as string[]
+
+                  // For each member, calculate their contribution history
+                  const membersWithStats = await Promise.all(
+                    memberAddresses.map(async (address, index) => {
+                      // Calculate contributions by checking each cycle
+                      let totalContributions = 0
+                      let cyclesCompleted = 0
+
+                      // Check contribution status for each completed cycle
+                      for (let cycle = 1; cycle < currentCycle; cycle++) {
+                        try {
+                          const statusTx = new SorobanClient.TransactionBuilder(sourceAccount, {
+                            fee: '100',
+                            networkPassphrase: NETWORK_PASSPHRASE,
+                          })
+                            .addOperation(
+                              contract.call(
+                                'get_contribution_status',
+                                SorobanClient.xdr.ScVal.scvU64(new SorobanClient.xdr.Uint64(parseInt(groupId))),
+                                SorobanClient.xdr.ScVal.scvU32(cycle)
+                              )
+                            )
+                            .setTimeout(30)
+                            .build()
+
+                          const statusSim = await server.simulateTransaction(statusTx)
+                          if (SorobanClient.SorobanRpc.Api.isSimulationSuccess(statusSim)) {
+                            const contributions = SorobanClient.scValToNative(statusSim.result!.retval) as Array<[string, boolean]>
+                            const memberContribution = contributions.find(([addr]) => addr === address)
+                            if (memberContribution && memberContribution[1]) {
+                              totalContributions++
+                              cyclesCompleted++
+                            }
+                          }
+                        } catch {
+                          // Skip if cycle data not available
+                        }
+                      }
+
+                      // Estimate join date (creator is first, others joined later)
+                      // Since contract doesn't store individual join dates, we estimate
+                      const estimatedJoinDate = new Date((createdAt + index * 86400) * 1000).toISOString()
+
+                      return {
+                        address,
+                        groupId,
+                        joinedDate: estimatedJoinDate,
+                        contributions: totalContributions,
+                        totalContributed: totalContributions * Number(groupData.contribution_amount) / 10_000_000,
+                        cyclesCompleted,
+                        status: groupData.is_complete ? 'completed' : 'active' as const,
+                      }
+                    })
+                  )
+
+                  return membersWithStats
                 },
                 'getGroupMembers'
               )
